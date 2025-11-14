@@ -65,16 +65,8 @@ La aplicación web está configurada con **React** y **Vite**.
     ```bash
     npm install
     ```
-3.  **Configuración de Variables de Entorno (.env):**
-    * Crea un archivo llamado `.env.local` en la raíz de `FrontEnd`.
-    * [cite_start]Agrega las variables necesarias, como la URL base de tu API y tu clave de **Google Maps API** (servicio externo para geolocalización [cite: 61]).
 
-    ```ini
-    # Ejemplo de .env.local
-    VITE_API_BASE_URL=http://localhost:5000/api/v1
-    VITE_GOOGLE_MAPS_API_KEY=TU_CLAVE_AQUI
-    ```
-4.  **Ejecuta la Aplicación:**
+3.  **Ejecuta la Aplicación:**
     ```bash
     npm run dev
     ```

@@ -58,7 +58,7 @@ La API fue desarrollada con **.NET 8 Web API** y sigue el estilo arquitectónico
     ```json
     {
       "ConnectionStrings": {
-        "DefaultConnection": "Server=localhost;Database=reportes_db;User=tu_usuario;Password=tu_contraseña;"
+        "DefaultConnection": "Server=localhost;Database=reportes_db;User=root;Password=;"
       }
     }
     ```

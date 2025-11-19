@@ -173,72 +173,135 @@ namespace TuProyecto.Controllers
             }
         }
 
-        // GET: api/reportes/cercanos
-        [HttpGet("cercanos")]
-        public async Task<ActionResult<IEnumerable<object>>> GetReportesCercanos(
-            [FromQuery] double? latitud = null, 
-            [FromQuery] double? longitud = null, 
-            [FromQuery] double radioMetros = 500)
+       // GET: api/reportes/cercanos
+[HttpGet("cercanos")]
+public async Task<ActionResult<IEnumerable<object>>> GetReportesCercanos(
+    [FromQuery] double? latitud = null, 
+    [FromQuery] double? longitud = null, 
+    [FromQuery] double radioMetros = 500)
+{
+    try
+    {
+        _logger.LogInformation("Buscando reportes cercanos...");
+
+        // Si no se proporcionan coordenadas, usar la ubicación actual del usuario
+        double userLatitud = latitud ?? 0;
+        double userLongitud = longitud ?? 0;
+
+        if (userLatitud == 0 || userLongitud == 0)
         {
-            try
+            var ubicacionActual = await ObtenerUbicacionDesdeRequest();
+            if (ubicacionActual != null)
             {
-                // Si no se proporcionan coordenadas, usar la ubicación actual del usuario
-                double userLatitud = latitud ?? 0;
-                double userLongitud = longitud ?? 0;
-
-                if (userLatitud == 0 || userLongitud == 0)
-                {
-                    var ubicacionActual = await ObtenerUbicacionDesdeRequest();
-                    if (ubicacionActual != null)
-                    {
-                        userLatitud = ubicacionActual.Latitud;
-                        userLongitud = ubicacionActual.Longitud;
-                    }
-                    else
-                    {
-                        return BadRequest("No se pudo determinar la ubicación actual. Proporcione coordenadas manualmente.");
-                    }
-                }
-
-                // Fórmula Haversine aproximada para filtrar reportes cercanos
-                const double GRADOS_POR_KILOMETRO = 0.009;
-
-                var radioGrados = radioMetros / 1000 * GRADOS_POR_KILOMETRO;
-
-                var reportesCercanos = await _context.Reportes
-                    .Where(r => 
-                        r.Latitud >= userLatitud - radioGrados &&
-                        r.Latitud <= userLatitud + radioGrados &&
-                        r.Longitud >= userLongitud - radioGrados &&
-                        r.Longitud <= userLongitud + radioGrados)
-                    .Select(r => new
-                    {
-                        r.Id,
-                        r.TipoIncidente,
-                        r.Estado,
-                        r.Latitud,
-                        r.Longitud,
-                        r.UrlFoto,
-                        DistanciaMetros = CalculateDistance(userLatitud, userLongitud, r.Latitud, r.Longitud)
-                    })
-                    .Where(r => r.DistanciaMetros <= radioMetros)
-                    .OrderBy(r => r.DistanciaMetros)
-                    .ToListAsync();
-
-                return Ok(new 
-                { 
-                    UbicacionConsulta = new { Latitud = userLatitud, Longitud = userLongitud },
-                    RadioMetros = radioMetros,
-                    Reportes = reportesCercanos 
-                });
+                userLatitud = ubicacionActual.Latitud;
+                userLongitud = ubicacionActual.Longitud;
+                _logger.LogInformation($"Usando ubicación automática: {userLatitud}, {userLongitud}");
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(ex, "Error al obtener reportes cercanos");
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogWarning("No se pudo determinar la ubicación actual");
+                return BadRequest("No se pudo determinar la ubicación actual. Proporcione coordenadas manualmente.");
             }
         }
+        else
+        {
+            _logger.LogInformation($"Usando coordenadas proporcionadas: {userLatitud}, {userLongitud}");
+        }
 
+        // Fórmula Haversine aproximada para filtrar reportes cercanos
+        const double GRADOS_POR_KILOMETRO = 0.009;
+        var radioGrados = radioMetros / 1000 * GRADOS_POR_KILOMETRO;
+
+        _logger.LogInformation($"Radio de búsqueda: {radioMetros} metros ({radioGrados} grados)");
+
+        // Primero obtener todos los reportes en el área aproximada
+        var reportesEnArea = await _context.Reportes
+            .Where(r => 
+                r.Latitud >= userLatitud - radioGrados &&
+                r.Latitud <= userLatitud + radioGrados &&
+                r.Longitud >= userLongitud - radioGrados &&
+                r.Longitud <= userLongitud + radioGrados)
+            .Select(r => new
+            {
+                r.Id,
+                r.TipoIncidente,
+                r.Estado,
+                r.Latitud,
+                r.Longitud,
+                r.UrlFoto,
+                r.FechaCreacion
+            })
+            .ToListAsync();
+
+        _logger.LogInformation($"Encontrados {reportesEnArea.Count} reportes en área aproximada");
+
+        // Luego calcular distancias exactas en memoria
+        var reportesCercanos = reportesEnArea
+            .Select(r => new
+            {
+                r.Id,
+                r.TipoIncidente,
+                r.Estado,
+                r.Latitud,
+                r.Longitud,
+                r.UrlFoto,
+                r.FechaCreacion,
+                DistanciaMetros = CalculateDistance(userLatitud, userLongitud, r.Latitud, r.Longitud)
+            })
+            .Where(r => r.DistanciaMetros <= radioMetros)
+            .OrderBy(r => r.DistanciaMetros)
+            .ToList();
+
+        _logger.LogInformation($"Encontrados {reportesCercanos.Count} reportes dentro del radio de {radioMetros} metros");
+
+        return Ok(new 
+        { 
+            UbicacionConsulta = new { Latitud = userLatitud, Longitud = userLongitud },
+            RadioMetros = radioMetros,
+            TotalEncontrados = reportesCercanos.Count,
+            Reportes = reportesCercanos 
+        });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error al obtener reportes cercanos. Detalles: {Message}", ex.Message);
+        return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+    }
+}
+
+// Método auxiliar para calcular distancia usando fórmula Haversine (CORREGIDO)
+private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+{
+    try
+    {
+        if (double.IsNaN(lat1) || double.IsNaN(lon1) || double.IsNaN(lat2) || double.IsNaN(lon2))
+        {
+            return double.MaxValue; // Retornar un valor grande si hay coordenadas inválidas
+        }
+
+        const double R = 6371000; // Radio de la Tierra en metros
+        
+        var dLat = ToRadians(lat2 - lat1);
+        var dLon = ToRadians(lon2 - lon1);
+        
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return R * c;
+    }
+    catch (Exception)
+    {
+        return double.MaxValue;
+    }
+}
+
+// Método auxiliar para convertir grados a radianes
+private static double ToRadians(double degrees)
+{
+    return degrees * Math.PI / 180;
+}
         // GET: api/reportes/misreportes
         [HttpGet("misreportes")]
         public async Task<ActionResult<IEnumerable<object>>> GetMisReportes()
@@ -396,18 +459,7 @@ namespace TuProyecto.Controllers
             }
         }
 
-        // Método auxiliar para calcular distancia usando fórmula Haversine
-        private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
-        {
-            const double R = 6371000; // Radio de la Tierra en metros
-            var dLat = (lat2 - lat1) * Math.PI / 180;
-            var dLon = (lon2 - lon1) * Math.PI / 180;
-            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                    Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
-                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-            return R * c;
-        }
+        // Eliminado duplicado de CalculateDistance; se utiliza la única implementación "CORREGIDO" definida anteriormente.
     }
 
     // Servicio de archivos

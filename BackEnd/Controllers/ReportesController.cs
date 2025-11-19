@@ -9,19 +9,24 @@ namespace TuProyecto.Controllers
     {
         private readonly MyDbContext _context;
         private readonly ILogger<ReportesController> _logger;
+        private readonly ArchivoService _archivoService;
 
-        public ReportesController(MyDbContext context, ILogger<ReportesController> logger)
+        public ReportesController(MyDbContext context, ILogger<ReportesController> logger, ArchivoService archivoService)
         {
             _context = context;
             _logger = logger;
+            _archivoService = archivoService;
         }
 
         // POST: api/reportes
         [HttpPost]
-        public async Task<ActionResult<Reporte>> CrearReporte(CrearReporteDto crearReporteDto)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<Reporte>> CrearReporte([FromForm] CrearReporteConArchivoDto crearReporteDto)
         {
             try
             {
+                _logger.LogInformation("Iniciando creación de reporte...");
+
                 // Validación de campos obligatorios
                 if (string.IsNullOrWhiteSpace(crearReporteDto.TipoIncidente))
                     return BadRequest("El tipo de incidente es obligatorio");
@@ -35,7 +40,6 @@ namespace TuProyecto.Controllers
 
                 if (latitud == 0 || longitud == 0)
                 {
-                    // En una implementación real, esto vendría del frontend via headers o DTO
                     var ubicacionAutomatica = await ObtenerUbicacionDesdeRequest();
                     if (ubicacionAutomatica != null)
                     {
@@ -59,21 +63,52 @@ namespace TuProyecto.Controllers
                     FechaCreacion = DateTime.Now
                 };
 
-                // TODO: Aquí se ejecutaría la lógica de carga de imagen a AWS S3
-                // if (!string.IsNullOrEmpty(crearReporteDto.UrlFotoTemp))
-                // {
-                //     reporte.UrlFoto = await _s3Service.UploadImageAsync(crearReporteDto.UrlFotoTemp);
-                // }
+                // Lógica de carga de imagen real
+                if (crearReporteDto.ArchivoFoto != null && crearReporteDto.ArchivoFoto.Length > 0)
+                {
+                    _logger.LogInformation($"Procesando archivo: {crearReporteDto.ArchivoFoto.FileName}, Tamaño: {crearReporteDto.ArchivoFoto.Length} bytes");
+
+                    // Validar que sea una imagen
+                    var extensionesPermitidas = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
+                    var extension = Path.GetExtension(crearReporteDto.ArchivoFoto.FileName).ToLowerInvariant();
+                    
+                    if (!extensionesPermitidas.Contains(extension))
+                        return BadRequest("Formato de archivo no permitido. Solo se permiten imágenes JPG, JPEG, PNG, GIF, BMP o WebP.");
+
+                    // Validar tamaño máximo (5MB)
+                    const int maxFileSize = 5 * 1024 * 1024;
+                    if (crearReporteDto.ArchivoFoto.Length > maxFileSize)
+                        return BadRequest("El archivo es demasiado grande. El tamaño máximo permitido es 5MB.");
+
+                    // Subir archivo usando el servicio
+                    var rutaRelativa = await _archivoService.SubirArchivoAsync(crearReporteDto.ArchivoFoto, "uploads");
+                    
+                    if (!string.IsNullOrEmpty(rutaRelativa))
+                    {
+                        reporte.UrlFoto = rutaRelativa;
+                        _logger.LogInformation($"Archivo subido exitosamente: {rutaRelativa}");
+                    }
+                    else
+                    {
+                        _logger.LogError("El servicio de archivos devolvió una ruta nula o vacía");
+                        return StatusCode(500, "Error al subir la imagen - No se pudo guardar el archivo en el servidor");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("No se proporcionó archivo o está vacío");
+                }
 
                 _context.Reportes.Add(reporte);
                 await _context.SaveChangesAsync();
 
+                _logger.LogInformation($"Reporte creado exitosamente con ID: {reporte.Id}");
                 return CreatedAtAction(nameof(GetReporte), new { id = reporte.Id }, reporte);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al crear reporte");
-                return StatusCode(500, "Error interno del servidor");
+                _logger.LogError(ex, "Error crítico al crear reporte");
+                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
             }
         }
 
@@ -119,6 +154,12 @@ namespace TuProyecto.Controllers
 
                 if (reporte.Estado != "Pendiente")
                     return BadRequest("Solo se pueden eliminar reportes en estado 'Pendiente'");
+
+                // Eliminar archivo físico si existe
+                if (!string.IsNullOrEmpty(reporte.UrlFoto))
+                {
+                    await _archivoService.EliminarArchivoAsync(reporte.UrlFoto);
+                }
 
                 _context.Reportes.Remove(reporte);
                 await _context.SaveChangesAsync();
@@ -177,6 +218,7 @@ namespace TuProyecto.Controllers
                         r.Estado,
                         r.Latitud,
                         r.Longitud,
+                        r.UrlFoto,
                         DistanciaMetros = CalculateDistance(userLatitud, userLongitud, r.Latitud, r.Longitud)
                     })
                     .Where(r => r.DistanciaMetros <= radioMetros)
@@ -216,7 +258,8 @@ namespace TuProyecto.Controllers
                         r.Estado,
                         r.TipoIncidente,
                         r.Latitud,
-                        r.Longitud
+                        r.Longitud,
+                        r.UrlFoto
                     })
                     .ToListAsync();
 
@@ -277,6 +320,49 @@ namespace TuProyecto.Controllers
             }
         }
 
+        // GET: api/reportes/configuracion
+        [HttpGet("configuracion")]
+        public ActionResult<object> VerificarConfiguracion()
+        {
+            try
+            {
+                var webRootPath = _archivoService.GetWebRootPath();
+                var uploadsPath = Path.Combine(webRootPath, "uploads");
+                var uploadsExists = Directory.Exists(uploadsPath);
+                
+                return new
+                {
+                    WebRootPath = webRootPath,
+                    UploadsPath = uploadsPath,
+                    UploadsExists = uploadsExists,
+                    CurrentDirectory = Directory.GetCurrentDirectory(),
+                    CanWrite = CanWriteToDirectory(uploadsPath)
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { Error = ex.Message };
+            }
+        }
+
+        private bool CanWriteToDirectory(string path)
+        {
+            try
+            {
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+                    
+                var testFile = Path.Combine(path, "test.txt");
+                System.IO.File.WriteAllText(testFile, "test");
+                System.IO.File.Delete(testFile);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         // Método auxiliar para obtener ubicación desde el request
         private async Task<Ubicacion?> ObtenerUbicacionDesdeRequest()
         {
@@ -324,6 +410,154 @@ namespace TuProyecto.Controllers
         }
     }
 
+    // Servicio de archivos
+    public class ArchivoService
+    {
+        private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<ArchivoService> _logger;
+
+        public ArchivoService(IWebHostEnvironment environment, ILogger<ArchivoService> logger)
+        {
+            _environment = environment;
+            _logger = logger;
+            
+            // Asegurar que la carpeta existe al inicializar el servicio
+            EnsureUploadDirectoryExists();
+        }
+
+        private void EnsureUploadDirectoryExists()
+        {
+            try
+            {
+                var uploadsPath = Path.Combine(GetWebRootPath(), "uploads");
+                if (!Directory.Exists(uploadsPath))
+                {
+                    Directory.CreateDirectory(uploadsPath);
+                    _logger.LogInformation($"Carpeta uploads creada en: {uploadsPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear carpeta uploads");
+            }
+        }
+
+        public string GetWebRootPath()
+        {
+            var webRootPath = _environment.WebRootPath;
+            if (string.IsNullOrEmpty(webRootPath))
+            {
+                webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            }
+            return webRootPath;
+        }
+
+        public async Task<string?> SubirArchivoAsync(IFormFile archivo, string carpetaDestino = "uploads")
+        {
+            if (archivo == null || archivo.Length == 0)
+            {
+                _logger.LogWarning("Archivo nulo o vacío");
+                return null;
+            }
+
+            try
+            {
+                // Verificar que WebRootPath existe
+                var webRootPath = GetWebRootPath();
+                if (string.IsNullOrEmpty(webRootPath))
+                {
+                    _logger.LogError("WebRootPath no está configurado");
+                    return null;
+                }
+
+                var rutaCarpeta = Path.Combine(webRootPath, carpetaDestino);
+                
+                // Asegurar que la carpeta existe
+                if (!Directory.Exists(rutaCarpeta))
+                {
+                    Directory.CreateDirectory(rutaCarpeta);
+                    _logger.LogInformation($"Carpeta creada: {rutaCarpeta}");
+                }
+
+                // Validar extensión del archivo
+                var extensionesPermitidas = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
+                var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
+                
+                if (string.IsNullOrEmpty(extension) || !extensionesPermitidas.Contains(extension))
+                {
+                    _logger.LogWarning($"Extensión no permitida: {extension}");
+                    return null;
+                }
+
+                // Validar tamaño del archivo (5MB máximo)
+                const long maxFileSize = 5 * 1024 * 1024;
+                if (archivo.Length > maxFileSize)
+                {
+                    _logger.LogWarning($"Archivo demasiado grande: {archivo.Length} bytes");
+                    return null;
+                }
+
+                // Generar nombre único
+                var nombreUnico = $"{Guid.NewGuid()}{extension}";
+                var rutaCompleta = Path.Combine(rutaCarpeta, nombreUnico);
+
+                _logger.LogInformation($"Intentando guardar archivo en: {rutaCompleta}");
+
+                // Guardar el archivo
+                using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+                {
+                    await archivo.CopyToAsync(stream);
+                }
+
+                _logger.LogInformation($"Archivo guardado exitosamente: {nombreUnico}");
+                
+                return $"~/{carpetaDestino}/{nombreUnico}";
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Error de permisos al escribir en el directorio");
+                return null;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "Error de E/S al guardar el archivo");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error inesperado al subir archivo");
+                return null;
+            }
+        }
+
+        public async Task<bool> EliminarArchivoAsync(string rutaRelativa)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(rutaRelativa))
+                    return false;
+
+                // Convertir ruta relativa a ruta física
+                var rutaArchivo = rutaRelativa.Replace("~/", "");
+                var rutaCompleta = Path.Combine(GetWebRootPath(), rutaArchivo);
+
+                if (File.Exists(rutaCompleta))
+                {
+                    File.Delete(rutaCompleta);
+                    _logger.LogInformation($"Archivo eliminado: {rutaCompleta}");
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar archivo: {Ruta}", rutaRelativa);
+                return false;
+            }
+        }
+    }
+
     // DTOs y clases auxiliares
     public class CrearReporteDto
     {
@@ -331,8 +565,11 @@ namespace TuProyecto.Controllers
         public string DescripcionDetallada { get; set; } = string.Empty;
         public double Latitud { get; set; }
         public double Longitud { get; set; }
-        public string? UrlFoto { get; set; }
-        public string? UrlFotoTemp { get; set; }
+    }
+
+    public class CrearReporteConArchivoDto : CrearReporteDto
+    {
+        public IFormFile? ArchivoFoto { get; set; }
     }
 
     public class ActualizarReporteDto

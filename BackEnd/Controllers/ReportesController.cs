@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using BackEnd.Data;
+using BackEnd.Model;
 
-namespace TuProyecto.Controllers
+namespace BackEnd.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

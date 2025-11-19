@@ -1,4 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using BackEnd.Model;
+
+
+namespace BackEnd.Data
+{
 
 public class MyDbContext : DbContext
 {
@@ -8,6 +13,8 @@ public class MyDbContext : DbContext
 
     public DbSet<Reporte> Reportes { get; set; }
 
+    public DbSet<User> Users { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Configuración adicional del modelo si es necesario
@@ -16,5 +23,6 @@ public class MyDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Estado).HasDefaultValue("Pendiente");
         });
+        }
     }
 }

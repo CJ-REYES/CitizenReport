@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using BackEnd.Model;
 
 public class Reporte
 {
@@ -7,6 +9,10 @@ public class Reporte
 
     [Required]
     public int CiudadanoId { get; set; }
+
+    // Propiedad de navegación (Un reporte pertenece a un usuario)
+    [ForeignKey("CiudadanoId")]
+    public User? Ciudadano { get; set; }
 
     [Required]
     [MaxLength(100)]
@@ -21,7 +27,6 @@ public class Reporte
     [Required]
     public double Longitud { get; set; }
 
-    // Opcional
     public string? UrlFoto { get; set; }
 
     [Required]

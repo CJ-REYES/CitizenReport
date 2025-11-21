@@ -358,24 +358,27 @@ private static double ToRadians(double degrees)
 {
     return degrees * Math.PI / 180;
 }
-       // GET: api/reportes/misreportes
-[HttpGet("misreportes")]
-public async Task<ActionResult<IEnumerable<object>>> GetMisReportes()
+// GET: api/reportes/misreportes/{id}
+[HttpGet("misreportes/{id}")]
+public async Task<ActionResult<IEnumerable<object>>> GetMisReportes(int id)
 {
     try
     {
-        // TODO: Aquí deberías obtener el ID del token JWT o de la sesión
-        // Por ahora mantenemos el ID 1 fijo para pruebas
-        var ciudadanoId = 1; 
+        // 1. Verificar primero si el usuario existe (Opcional, pero recomendado)
+        var usuarioExiste = await _context.Users.AnyAsync(u => u.Id == id);
+        if (!usuarioExiste)
+        {
+            return NotFound($"No se encontró ningún usuario con el ID {id}");
+        }
 
-        // 1. Obtener datos de la base de datos
+        // 2. Buscar los reportes vinculados a esa ID
         var reportesDb = await _context.Reportes
-            .Include(r => r.Ciudadano) // Incluimos datos del usuario para obtener su foto/nombre
-            .Where(r => r.CiudadanoId == ciudadanoId)
+            .Include(r => r.Ciudadano)
+            .Where(r => r.CiudadanoId == id) // <--- Aquí usamos la ID recibida
             .OrderByDescending(r => r.FechaCreacion)
             .ToListAsync();
 
-        // 2. Transformar datos y generar URLs absolutas
+        // 3. Formatear la respuesta con URLs completas
         var misReportes = reportesDb.Select(r => new
         {
             r.Id,
@@ -386,10 +389,10 @@ public async Task<ActionResult<IEnumerable<object>>> GetMisReportes()
             r.Estado,
             r.FechaCreacion,
             
-            // URL completa de la evidencia
+            // Generar URL completa para la imagen
             UrlFoto = GenerarUrlCompleta(r.UrlFoto),
 
-            // Datos del usuario (aunque sea el mismo, mantenemos consistencia de estructura)
+            // Datos del usuario
             Usuario = new {
                 Id = r.CiudadanoId,
                 Nombre = r.Ciudadano?.Nombre ?? "Usuario",
@@ -401,7 +404,7 @@ public async Task<ActionResult<IEnumerable<object>>> GetMisReportes()
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, "Error al obtener mis reportes");
+        _logger.LogError(ex, "Error al obtener los reportes del usuario {Id}", id);
         return StatusCode(500, "Error interno del servidor");
     }
 }

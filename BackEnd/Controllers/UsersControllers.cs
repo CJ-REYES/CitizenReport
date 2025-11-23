@@ -3,6 +3,10 @@ using BackEnd.Data;
 using BackEnd.DTOs;
 using BackEnd.Model;
 using BCrypt.Net;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
 
 namespace BackEnd.Controllers
 {
@@ -119,7 +123,64 @@ public IActionResult DeleteUser(int id)
     return Ok("Usuario eliminado correctamente.");
 }
 
+[HttpPost("login")]
+public IActionResult Login(UserLoginDTO dto)
+{
+    // Buscar usuario por email
+    var user = _context.Users.SingleOrDefault(u => u.Email == dto.Email);
 
+    // Verificar credenciales
+    if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+    {
+        return Unauthorized("CREDENCIALES INVALIDAS");
+    }
+
+    // Generar token
+    var token = GenerateJwtToken(user);
+
+    // Retornar respuesta
+    return Ok(new
+    {
+        IdUser = user.Id,
+        Email = user.Email,
+        NombreUser = user.Nombre,
+        TokenJWT = token
+    });
+}
+
+private string GenerateJwtToken(User user)
+{
+    var configuration = new ConfigurationBuilder()
+        .AddJsonFile("appsettings.json")
+        .Build();
+    
+    var secretKey = configuration["Jwt:SecretKey"];
+    var expireHours = int.Parse(configuration["Jwt:ExpireHours"] ?? "2");
+    
+    var key = Encoding.UTF8.GetBytes(secretKey);
+
+    var claims = new[]
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Name, user.Nombre),
+        new Claim(ClaimTypes.Role, user.Rol),
+        new Claim("PhotoUrl", user.FotoPerfilURL ?? "")
+    };
+
+    var tokenDescriptor = new SecurityTokenDescriptor
+    {
+        Subject = new ClaimsIdentity(claims),
+        Expires = DateTime.UtcNow.AddHours(expireHours),
+        SigningCredentials = new SigningCredentials(
+            new SymmetricSecurityKey(key),
+            SecurityAlgorithms.HmacSha256Signature)
+    };
+
+    var tokenHandler = new JwtSecurityTokenHandler();
+    var token = tokenHandler.CreateToken(tokenDescriptor);
+    return tokenHandler.WriteToken(token);
+}
 
 }
 }

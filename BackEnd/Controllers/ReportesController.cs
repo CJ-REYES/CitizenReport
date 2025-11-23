@@ -19,152 +19,299 @@ namespace BackEnd.Controllers
             _logger = logger;
             _archivoService = archivoService;
         }
-// GET: api/reportes
-[HttpGet]
-public async Task<ActionResult<IEnumerable<object>>> GetAllReportes()
+
+        // GET: api/reportes
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<object>>> GetAllReportes()
+        {
+            try
+            {
+                var reportesDb = await _context.Reportes
+                    .Include(r => r.Ciudadano)
+                    .OrderByDescending(r => r.FechaCreacion)
+                    .ToListAsync();
+
+                var reportesConUrl = reportesDb.Select(r => new
+                {
+                    r.Id,
+                    r.TipoIncidente,
+                    r.DescripcionDetallada,
+                    r.Latitud,
+                    r.Longitud,
+                    r.Estado,
+                    r.FechaCreacion,
+                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+                    Usuario = new {
+                        Id = r.CiudadanoId,
+                        Nombre = r.Ciudadano?.Nombre ?? "Usuario Desconocido",
+                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                        Puntos = r.Ciudadano?.Puntos ?? 0
+                    }
+                });
+
+                return Ok(reportesConUrl);
+            }
+            
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener reportes");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // POST: api/reportes
+        [HttpPost]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<Reporte>> CrearReporte([FromForm] CrearReporteConArchivoDto crearReporteDto)
+        {
+            try
+            {
+                _logger.LogInformation("Iniciando creación de reporte...");
+
+                // 1. VALIDACIÓN DE CAMPOS BÁSICOS
+                if (string.IsNullOrWhiteSpace(crearReporteDto.TipoIncidente))
+                    return BadRequest("El tipo de incidente es obligatorio");
+
+                if (string.IsNullOrWhiteSpace(crearReporteDto.DescripcionDetallada))
+                    return BadRequest("La descripción detallada es obligatoria");
+
+                // 2. VALIDACIÓN DE USUARIO
+                var usuarioExiste = await _context.Users.AnyAsync(u => u.Id == crearReporteDto.CiudadanoId);
+                if (!usuarioExiste)
+                {
+                    return BadRequest($"El usuario con ID {crearReporteDto.CiudadanoId} no existe.");
+                }
+
+                // 3. GESTIÓN DE UBICACIÓN
+                double latitud = crearReporteDto.Latitud;
+                double longitud = crearReporteDto.Longitud;
+
+                if (latitud == 0 || longitud == 0)
+                {
+                    var ubicacionAutomatica = await ObtenerUbicacionDesdeRequest();
+                    if (ubicacionAutomatica != null)
+                    {
+                        latitud = ubicacionAutomatica.Latitud;
+                        longitud = ubicacionAutomatica.Longitud;
+                    }
+                    else
+                    {
+                        return BadRequest("No se pudo obtener la ubicación. Proporcione coordenadas manualmente.");
+                    }
+                }
+
+                // 4. VALIDACIÓN DE DUPLICADOS POR CERCANÍA (50 metros)
+                const double GRADOS_APROX_50M = 0.00045;
+                
+                var reportesCercanosDB = await _context.Reportes
+                    .Where(r => 
+                        r.Latitud >= latitud - GRADOS_APROX_50M &&
+                        r.Latitud <= latitud + GRADOS_APROX_50M &&
+                        r.Longitud >= longitud - GRADOS_APROX_50M &&
+                        r.Longitud <= longitud + GRADOS_APROX_50M &&
+                        r.Estado != "Resuelto")
+                    .ToListAsync();
+
+                foreach (var rep in reportesCercanosDB)
+                {
+                    var distancia = CalculateDistance(latitud, longitud, rep.Latitud, rep.Longitud);
+                    if (distancia <= 50)
+                    {
+                        return Conflict(new { 
+                            mensaje = "Ya existe un reporte similar en esta ubicación (radio de 50m).",
+                            reporteExistenteId = rep.Id 
+                        });
+                    }
+                }
+
+                // 5. CREACIÓN DEL OBJETO - CAMBIO DE ESTADO A "EnValidacion"
+                var reporte = new Reporte
+                {
+                    CiudadanoId = crearReporteDto.CiudadanoId,
+                    TipoIncidente = crearReporteDto.TipoIncidente,
+                    DescripcionDetallada = crearReporteDto.DescripcionDetallada,
+                    Latitud = latitud,
+                    Longitud = longitud,
+                    Estado = "EnValidacion",
+                    FechaCreacion = DateTime.Now
+                };
+
+                // 6. LÓGICA DE IMAGEN
+                if (crearReporteDto.ArchivoFoto != null && crearReporteDto.ArchivoFoto.Length > 0)
+                {
+                    var rutaRelativa = await _archivoService.SubirArchivoAsync(crearReporteDto.ArchivoFoto, "uploads");
+                    if (!string.IsNullOrEmpty(rutaRelativa)) reporte.UrlFoto = rutaRelativa;
+                }
+
+                _context.Reportes.Add(reporte);
+                // Otorgar +10 puntos al creador del reporte
+var creadorReporte = await _context.Users.FindAsync(crearReporteDto.CiudadanoId);
+if (creadorReporte != null)
+{
+    creadorReporte.Puntos += 10;
+}
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Reporte creado exitosamente con ID: {reporte.Id}");
+                return CreatedAtAction(nameof(GetReporte), new { id = reporte.Id }, reporte);
+            }
+            
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error crítico al crear reporte");
+                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+            }
+        }
+
+        // GET: api/reportes/porvalidar/{idCiudadano}
+        [HttpGet("porvalidar/{idCiudadano}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetReportesPorValidar(int idCiudadano)
+        {
+            try
+            {
+                // 1. Obtener IDs de reportes que el ciudadano ya validó
+                var reportesYaValidados = await _context.ReporteValidaciones
+                    .Where(rv => rv.CiudadanoId == idCiudadano)
+                    .Select(rv => rv.ReporteId)
+                    .ToListAsync();
+
+                // 2. Traer reportes en validación que no sean del usuario y que no haya validado
+                var reportesDb = await _context.Reportes
+                    .Include(r => r.Ciudadano)
+                    .Where(r => r.Estado == "EnValidacion" && 
+                           r.CiudadanoId != idCiudadano &&
+                           !reportesYaValidados.Contains(r.Id))
+                    .OrderByDescending(r => r.FechaCreacion)
+                    .ToListAsync();
+
+                // 3. Formatear respuesta
+                var reportesConUrl = reportesDb.Select(r => new
+                {
+                    r.Id,
+                    r.TipoIncidente,
+                    r.DescripcionDetallada,
+                    r.Latitud,
+                    r.Longitud,
+                    r.Estado,
+                    r.FechaCreacion,
+                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+                    Usuario = new {
+                        Id = r.CiudadanoId,
+                        Nombre = r.Ciudadano?.Nombre ?? "Usuario Desconocido",
+                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                        Puntos = r.Ciudadano?.Puntos ?? 0
+                    }
+                });
+
+                return Ok(reportesConUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener reportes por validar");
+                return StatusCode(500, "Error interno del servidor");
+            }
+        }
+
+        // POST: api/reportes/validar
+[HttpPost("validar")]
+public async Task<IActionResult> ValidarReporte([FromBody] ValidacionDto validacionDto)
 {
     try
     {
-        // 1. Traer datos crudos de la base de datos
-        var reportesDb = await _context.Reportes
-            .Include(r => r.Ciudadano) // Traemos datos del usuario
-            .OrderByDescending(r => r.FechaCreacion)
+        // 1. Verificar que el reporte exista y esté en validación
+        var reporte = await _context.Reportes
+            .FirstOrDefaultAsync(r => r.Id == validacionDto.ReporteId && r.Estado == "EnValidacion");
+        
+        if (reporte == null)
+            return BadRequest("El reporte no existe o no está en validación.");
+
+        // 2. Verificar que el ciudadano no sea el creador del reporte
+        if (reporte.CiudadanoId == validacionDto.CiudadanoId)
+            return BadRequest("No puedes validar tu propio reporte.");
+
+        // 3. Verificar que el ciudadano no haya validado previamente este reporte
+        var validacionExistente = await _context.ReporteValidaciones
+            .FirstOrDefaultAsync(rv => rv.ReporteId == validacionDto.ReporteId && 
+                                    rv.CiudadanoId == validacionDto.CiudadanoId);
+        
+        if (validacionExistente != null)
+            return BadRequest("Ya has validado este reporte.");
+
+        // 4. Registrar la nueva validación
+        var validacion = new ReporteValidacion
+        {
+            ReporteId = validacionDto.ReporteId,
+            CiudadanoId = validacionDto.CiudadanoId,
+            EsPositiva = validacionDto.EsPositiva,
+            FechaValidacion = DateTime.Now
+        };
+        _context.ReporteValidaciones.Add(validacion);
+
+        // 5. Otorgar +5 puntos al ciudadano que valida
+        var ciudadanoValidador = await _context.Users.FindAsync(validacionDto.CiudadanoId);
+        if (ciudadanoValidador != null)
+        {
+            ciudadanoValidador.Puntos += 5;
+        }
+
+        // **CORRECCIÓN: Guardar cambios ANTES de contar las validaciones**
+        await _context.SaveChangesAsync();
+
+        // 6. Contar validaciones positivas y negativas (AHORA INCLUYE LA NUEVA VALIDACIÓN)
+        var validacionesReporte = await _context.ReporteValidaciones
+            .Where(rv => rv.ReporteId == validacionDto.ReporteId)
             .ToListAsync();
 
-        // 2. Transformar los datos en memoria para generar las URLs completas
-        var reportesConUrl = reportesDb.Select(r => new
+        int validacionesPositivas = validacionesReporte.Count(v => v.EsPositiva);
+        int validacionesNegativas = validacionesReporte.Count(v => !v.EsPositiva);
+
+        // 7. Aplicar lógica de cambio de estado y puntos
+        bool cambioEstado = false;
+        if (validacionesPositivas >= 10)
         {
-            r.Id,
-            r.TipoIncidente,
-            r.DescripcionDetallada,
-            r.Latitud,
-            r.Longitud,
-            r.Estado,
-            r.FechaCreacion,
-            
-            // Generamos la URL completa para la foto del reporte
-            UrlFoto = GenerarUrlCompleta(r.UrlFoto),
-
-            // Datos del Usuario con su foto también procesada
-            Usuario = new {
-                Id = r.CiudadanoId,
-                Nombre = r.Ciudadano?.Nombre ?? "Usuario Desconocido",
-                FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL)
+            reporte.Estado = "Validado";
+            cambioEstado = true;
+            // Otorgar +10 puntos al creador del reporte
+            var creadorReporte = await _context.Users.FindAsync(reporte.CiudadanoId);
+            if (creadorReporte != null)
+            {
+                creadorReporte.Puntos += 5;
             }
-        });
+        }
+        else if (validacionesNegativas >= 10)
+        {
+            reporte.Estado = "Rechazado";
+            cambioEstado = true;
+            // Restar -15 puntos al creador del reporte
+            var creadorReporte = await _context.Users.FindAsync(reporte.CiudadanoId);
+            if (creadorReporte != null)
+            {
+                creadorReporte.Puntos -= 10;
+                if (creadorReporte.Puntos < 0) creadorReporte.Puntos = 0;
+            }
+        }
 
-        return Ok(reportesConUrl);
+        // **CORRECCIÓN: Guardar cambios solo si hubo cambio de estado**
+        if (cambioEstado)
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { 
+            Mensaje = "Validación registrada correctamente",
+            PuntosOtorgados = 5,
+            EstadoActual = reporte.Estado,
+            ValidacionesPositivas = validacionesPositivas,
+            ValidacionesNegativas = validacionesNegativas
+        });
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, "Error al obtener reportes");
+        _logger.LogError(ex, "Error al validar reporte");
         return StatusCode(500, "Error interno del servidor");
     }
 }
 
-       // POST: api/reportes
-[HttpPost]
-[Consumes("multipart/form-data")]
-public async Task<ActionResult<Reporte>> CrearReporte([FromForm] CrearReporteConArchivoDto crearReporteDto)
-{
-    try
-    {
-        _logger.LogInformation("Iniciando creación de reporte...");
-
-        // 1. VALIDACIÓN DE CAMPOS BÁSICOS
-        if (string.IsNullOrWhiteSpace(crearReporteDto.TipoIncidente))
-            return BadRequest("El tipo de incidente es obligatorio");
-
-        if (string.IsNullOrWhiteSpace(crearReporteDto.DescripcionDetallada))
-            return BadRequest("La descripción detallada es obligatoria");
-
-        // 2. VALIDACIÓN DE USUARIO (Relación)
-        // Verificamos si el usuario existe antes de crear el reporte
-        var usuarioExiste = await _context.Users.AnyAsync(u => u.Id == crearReporteDto.CiudadanoId);
-        if (!usuarioExiste)
-        {
-            return BadRequest($"El usuario con ID {crearReporteDto.CiudadanoId} no existe.");
-        }
-
-        // 3. GESTIÓN DE UBICACIÓN
-        double latitud = crearReporteDto.Latitud;
-        double longitud = crearReporteDto.Longitud;
-
-        if (latitud == 0 || longitud == 0)
-        {
-            var ubicacionAutomatica = await ObtenerUbicacionDesdeRequest();
-            if (ubicacionAutomatica != null)
-            {
-                latitud = ubicacionAutomatica.Latitud;
-                longitud = ubicacionAutomatica.Longitud;
-            }
-            else
-            {
-                return BadRequest("No se pudo obtener la ubicación. Proporcione coordenadas manualmente.");
-            }
-        }
-
-        // 4. VALIDACIÓN DE DUPLICADOS POR CERCANÍA (50 metros)
-        // Primero filtramos crudamente por un cuadro pequeño para no traer toda la base de datos (optimización)
-        const double GRADOS_APROX_50M = 0.00045; // ~50 metros en grados
-        
-        var reportesCercanosDB = await _context.Reportes
-            .Where(r => 
-                r.Latitud >= latitud - GRADOS_APROX_50M &&
-                r.Latitud <= latitud + GRADOS_APROX_50M &&
-                r.Longitud >= longitud - GRADOS_APROX_50M &&
-                r.Longitud <= longitud + GRADOS_APROX_50M &&
-                r.Estado != "Resuelto") // Opcional: Si quieres permitir reportar si el anterior ya se arregló
-            .ToListAsync();
-
-        // Verificación fina usando la fórmula de Haversine
-        foreach (var rep in reportesCercanosDB)
-        {
-            var distancia = CalculateDistance(latitud, longitud, rep.Latitud, rep.Longitud);
-            if (distancia <= 50) // 50 metros
-            {
-                return Conflict(new { 
-                    mensaje = "Ya existe un reporte similar en esta ubicación (radio de 50m).",
-                    reporteExistenteId = rep.Id 
-                });
-            }
-        }
-
-        // 5. CREACIÓN DEL OBJETO
-        var reporte = new Reporte
-        {
-            CiudadanoId = crearReporteDto.CiudadanoId, // Usamos el ID enviado
-            TipoIncidente = crearReporteDto.TipoIncidente,
-            DescripcionDetallada = crearReporteDto.DescripcionDetallada,
-            Latitud = latitud,
-            Longitud = longitud,
-            Estado = "Pendiente",
-            FechaCreacion = DateTime.Now
-        };
-
-        // 6. LÓGICA DE IMAGEN (Sin cambios mayores, solo se mantiene)
-        if (crearReporteDto.ArchivoFoto != null && crearReporteDto.ArchivoFoto.Length > 0)
-        {
-            // ... (Tu lógica de validación de imagen existente va aquí) ...
-            // ... (Para ahorrar espacio asumo que mantienes tu bloque de código de subida) ...
-            
-            // Validar extensiones, tamaño y subir archivo con _archivoService...
-             var rutaRelativa = await _archivoService.SubirArchivoAsync(crearReporteDto.ArchivoFoto, "uploads");
-             if (!string.IsNullOrEmpty(rutaRelativa)) reporte.UrlFoto = rutaRelativa;
-        }
-
-        _context.Reportes.Add(reporte);
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation($"Reporte creado exitosamente con ID: {reporte.Id}");
-        return CreatedAtAction(nameof(GetReporte), new { id = reporte.Id }, reporte);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error crítico al crear reporte");
-        return StatusCode(500, $"Error interno del servidor: {ex.Message}");
-    }
-}
         // PUT: api/reportes/5
         [HttpPut("{id}")]
         public async Task<IActionResult> ActualizarReporte(int id, ActualizarReporteDto actualizarReporteDto)
@@ -175,9 +322,9 @@ public async Task<ActionResult<Reporte>> CrearReporte([FromForm] CrearReporteCon
                 if (reporte == null)
                     return NotFound();
 
-                // Solo permitir edición si el estado es "Pendiente"
-                if (reporte.Estado != "Pendiente")
-                    return BadRequest("Solo se pueden editar reportes en estado 'Pendiente'");
+                // Solo permitir edición si el estado es "Pendiente" o "EnValidacion"
+                if (reporte.Estado != "Pendiente" && reporte.Estado != "EnValidacion")
+                    return BadRequest("Solo se pueden editar reportes en estado 'Pendiente' o 'EnValidacion'");
 
                 reporte.DescripcionDetallada = actualizarReporteDto.DescripcionDetallada;
 
@@ -201,12 +348,12 @@ public async Task<ActionResult<Reporte>> CrearReporte([FromForm] CrearReporteCon
                 if (reporte == null)
                     return NotFound();
 
-                // Verificar que el reporte pertenezca al usuario actual y esté en estado "Pendiente"
+                // Verificar que el reporte pertenezca al usuario actual y esté en estado "Pendiente" o "EnValidacion"
                 if (reporte.CiudadanoId != 1) // TODO: Reemplazar con ID del usuario autenticado
                     return Forbid("No tiene permisos para eliminar este reporte");
 
-                if (reporte.Estado != "Pendiente")
-                    return BadRequest("Solo se pueden eliminar reportes en estado 'Pendiente'");
+                if (reporte.Estado != "Pendiente" && reporte.Estado != "EnValidacion")
+                    return BadRequest("Solo se pueden eliminar reportes en estado 'Pendiente' o 'EnValidacion'");
 
                 // Eliminar archivo físico si existe
                 if (!string.IsNullOrEmpty(reporte.UrlFoto))
@@ -226,283 +373,241 @@ public async Task<ActionResult<Reporte>> CrearReporte([FromForm] CrearReporteCon
             }
         }
 
-       // GET: api/reportes/cercanos
-// GET: api/reportes/cercanos
-[HttpGet("cercanos")]
-public async Task<ActionResult<IEnumerable<object>>> GetReportesCercanos(
-    [FromQuery] double? latitud = null, 
-    [FromQuery] double? longitud = null, 
-    [FromQuery] double radioMetros = 500)
-{
-    try
-    {
-        // 1. Determinar ubicación del usuario (Lógica original conservada)
-        double userLatitud = latitud ?? 0;
-        double userLongitud = longitud ?? 0;
-
-        if (userLatitud == 0 || userLongitud == 0)
+        // GET: api/reportes/cercanos
+        [HttpGet("cercanos")]
+        public async Task<ActionResult<IEnumerable<object>>> GetReportesCercanos(
+            [FromQuery] double? latitud = null, 
+            [FromQuery] double? longitud = null, 
+            [FromQuery] double radioMetros = 500)
         {
-            var ubicacionActual = await ObtenerUbicacionDesdeRequest();
-            if (ubicacionActual != null)
+            try
             {
-                userLatitud = ubicacionActual.Latitud;
-                userLongitud = ubicacionActual.Longitud;
+                // 1. Determinar ubicación del usuario
+                double userLatitud = latitud ?? 0;
+                double userLongitud = longitud ?? 0;
+
+                if (userLatitud == 0 || userLongitud == 0)
+                {
+                    var ubicacionActual = await ObtenerUbicacionDesdeRequest();
+                    if (ubicacionActual != null)
+                    {
+                        userLatitud = ubicacionActual.Latitud;
+                        userLongitud = ubicacionActual.Longitud;
+                    }
+                    else
+                    {
+                        return BadRequest("No se pudo determinar la ubicación actual.");
+                    }
+                }
+
+                // 2. Filtrado inicial (Bounding Box) en Base de Datos
+                const double GRADOS_POR_KILOMETRO = 0.009;
+                var radioGrados = radioMetros / 1000 * GRADOS_POR_KILOMETRO;
+
+                // Traemos las entidades completas con sus relaciones
+                var reportesEnArea = await _context.Reportes
+                    .Include(r => r.Ciudadano)
+                    .Where(r => 
+                        r.Latitud >= userLatitud - radioGrados &&
+                        r.Latitud <= userLatitud + radioGrados &&
+                        r.Longitud >= userLongitud - radioGrados &&
+                        r.Longitud <= userLongitud + radioGrados)
+                    .ToListAsync();
+
+                // 3. Procesamiento en Memoria (Cálculo exacto y URLs)
+                var reportesCercanos = reportesEnArea
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.TipoIncidente,
+                        r.Estado,
+                        r.Latitud,
+                        r.Longitud,
+                        r.DescripcionDetallada,
+                        r.FechaCreacion,
+                        
+                        // Convertimos URL relativa a absoluta
+                        UrlFoto = GenerarUrlCompleta(r.UrlFoto), 
+
+                        // Datos del Usuario
+                        Usuario = new {
+                            Id = r.CiudadanoId,
+                            Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
+                            FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                            Puntos = r.Ciudadano?.Puntos ?? 0
+                        },
+
+                        // Cálculo de distancia
+                        DistanciaMetros = CalculateDistance(userLatitud, userLongitud, r.Latitud, r.Longitud)
+                    })
+                    .Where(r => r.DistanciaMetros <= radioMetros)
+                    .OrderBy(r => r.DistanciaMetros)
+                    .ToList();
+
+                return Ok(new 
+                { 
+                    UbicacionConsulta = new { Latitud = userLatitud, Longitud = userLongitud },
+                    RadioMetros = radioMetros,
+                    TotalEncontrados = reportesCercanos.Count,
+                    Reportes = reportesCercanos 
+                });
             }
-            else
+            catch (Exception ex)
             {
-                return BadRequest("No se pudo determinar la ubicación actual.");
+                _logger.LogError(ex, "Error al obtener reportes cercanos");
+                return StatusCode(500, $"Error interno: {ex.Message}");
             }
         }
 
-        // 2. Filtrado inicial (Bounding Box) en Base de Datos
-        const double GRADOS_POR_KILOMETRO = 0.009;
-        var radioGrados = radioMetros / 1000 * GRADOS_POR_KILOMETRO;
-
-        // Traemos las entidades completas con sus relaciones
-        var reportesEnArea = await _context.Reportes
-            .Include(r => r.Ciudadano) // <--- IMPORTANTE: Incluir Usuario
-            .Where(r => 
-                r.Latitud >= userLatitud - radioGrados &&
-                r.Latitud <= userLatitud + radioGrados &&
-                r.Longitud >= userLongitud - radioGrados &&
-                r.Longitud <= userLongitud + radioGrados)
-            .ToListAsync();
-
-        // 3. Procesamiento en Memoria (Cálculo exacto y URLs)
-        var reportesCercanos = reportesEnArea
-            .Select(r => new
+        // GET: api/reportes/misreportes/{id}
+        [HttpGet("misreportes/{id}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetMisReportes(int id)
+        {
+            try
             {
-                r.Id,
-                r.TipoIncidente,
-                r.Estado,
-                r.Latitud,
-                r.Longitud,
-                r.DescripcionDetallada,
-                r.FechaCreacion,
-                
-                // Convertimos URL relativa a absoluta
-                UrlFoto = GenerarUrlCompleta(r.UrlFoto), 
+                // 1. Verificar primero si el usuario existe
+                var usuarioExiste = await _context.Users.AnyAsync(u => u.Id == id);
+                if (!usuarioExiste)
+                {
+                    return NotFound($"No se encontró ningún usuario con el ID {id}");
+                }
 
-                // Datos del Usuario
-                Usuario = new {
-                    Id = r.CiudadanoId,
-                    Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
-                    FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL)
-                },
+                // 2. Buscar los reportes vinculados a esa ID
+                var reportesDb = await _context.Reportes
+                    .Include(r => r.Ciudadano)
+                    .Where(r => r.CiudadanoId == id)
+                    .OrderByDescending(r => r.FechaCreacion)
+                    .ToListAsync();
 
-                // Cálculo de distancia
-                DistanciaMetros = CalculateDistance(userLatitud, userLongitud, r.Latitud, r.Longitud)
-            })
-            .Where(r => r.DistanciaMetros <= radioMetros)
-            .OrderBy(r => r.DistanciaMetros)
-            .ToList();
+                // 3. Formatear la respuesta con URLs completas
+                var misReportes = reportesDb.Select(r => new
+                {
+                    r.Id,
+                    r.TipoIncidente,
+                    r.DescripcionDetallada,
+                    r.Latitud,
+                    r.Longitud,
+                    r.Estado,
+                    r.FechaCreacion,
+                    
+                    // Generar URL completa para la imagen
+                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
 
-        return Ok(new 
-        { 
-            UbicacionConsulta = new { Latitud = userLatitud, Longitud = userLongitud },
-            RadioMetros = radioMetros,
-            TotalEncontrados = reportesCercanos.Count,
-            Reportes = reportesCercanos 
-        });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al obtener reportes cercanos");
-        return StatusCode(500, $"Error interno: {ex.Message}");
-    }
-}
-// Método auxiliar para calcular distancia usando fórmula Haversine (CORREGIDO)
-private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
-{
-    try
-    {
-        if (double.IsNaN(lat1) || double.IsNaN(lon1) || double.IsNaN(lat2) || double.IsNaN(lon2))
-        {
-            return double.MaxValue; // Retornar un valor grande si hay coordenadas inválidas
+                    // Datos del usuario
+                    Usuario = new {
+                        Id = r.CiudadanoId,
+                        Nombre = r.Ciudadano?.Nombre ?? "Usuario",
+                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                        Puntos = r.Ciudadano?.Puntos ?? 0
+                    }
+                });
+
+                return Ok(misReportes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener los reportes del usuario {Id}", id);
+                return StatusCode(500, "Error interno del servidor");
+            }
         }
 
-        const double R = 6371000; // Radio de la Tierra en metros
-        
-        var dLat = ToRadians(lat2 - lat1);
-        var dLon = ToRadians(lon2 - lon1);
-        
-        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
-                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-        
-        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-        return R * c;
-    }
-    catch (Exception)
-    {
-        return double.MaxValue;
-    }
-}
-// Método auxiliar para convertir ruta relativa (~/uploads/...) a URL absoluta (https://...)
-private string? GenerarUrlCompleta(string? rutaRelativa)
-{
-    if (string.IsNullOrEmpty(rutaRelativa)) return null;
-
-    // 1. Quitamos el "~/" del inicio si existe
-    var rutaLimpia = rutaRelativa.Replace("~/", "").Replace("\\", "/");
-
-    // 2. Obtenemos la base de la URL (ej: https://localhost:5001)
-    var baseUrl = $"{Request.Scheme}://{Request.Host}";
-
-    // 3. Combinamos
-    return $"{baseUrl}/{rutaLimpia}";
-}
-
-// Método auxiliar para convertir grados a radianes
-private static double ToRadians(double degrees)
-{
-    return degrees * Math.PI / 180;
-}
-// GET: api/reportes/misreportes/{id}
-[HttpGet("misreportes/{id}")]
-public async Task<ActionResult<IEnumerable<object>>> GetMisReportes(int id)
-{
-    try
-    {
-        // 1. Verificar primero si el usuario existe (Opcional, pero recomendado)
-        var usuarioExiste = await _context.Users.AnyAsync(u => u.Id == id);
-        if (!usuarioExiste)
+        // GET: api/reportes/filtrar
+        [HttpGet("filtrar")]
+        public async Task<ActionResult<IEnumerable<object>>> FiltrarReportes(
+            [FromQuery] string? tipo = null, 
+            [FromQuery] string? estado = null)
         {
-            return NotFound($"No se encontró ningún usuario con el ID {id}");
+            try
+            {
+                // 1. Construir la query
+                var query = _context.Reportes
+                    .Include(r => r.Ciudadano)
+                    .AsQueryable();
+
+                if (!string.IsNullOrEmpty(tipo))
+                    query = query.Where(r => r.TipoIncidente == tipo);
+
+                if (!string.IsNullOrEmpty(estado))
+                    query = query.Where(r => r.Estado == estado);
+
+                // 2. Ejecutar query en BD
+                var reportesDb = await query
+                    .OrderByDescending(r => r.FechaCreacion)
+                    .ToListAsync();
+
+                // 3. Transformar resultados (URLs completas y datos de usuario)
+                var resultado = reportesDb.Select(r => new 
+                {
+                    r.Id,
+                    r.TipoIncidente,
+                    r.DescripcionDetallada,
+                    r.Estado,
+                    r.Latitud,
+                    r.Longitud,
+                    r.FechaCreacion,
+
+                    // URL Foto Reporte
+                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+
+                    // Datos Usuario
+                    Usuario = new {
+                        Id = r.CiudadanoId,
+                        Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
+                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                        Puntos = r.Ciudadano?.Puntos ?? 0
+                    }
+                });
+
+                return Ok(resultado);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al filtrar reportes");
+                return StatusCode(500, "Error interno del servidor");
+            }
         }
 
-        // 2. Buscar los reportes vinculados a esa ID
-        var reportesDb = await _context.Reportes
-            .Include(r => r.Ciudadano)
-            .Where(r => r.CiudadanoId == id) // <--- Aquí usamos la ID recibida
-            .OrderByDescending(r => r.FechaCreacion)
-            .ToListAsync();
-
-        // 3. Formatear la respuesta con URLs completas
-        var misReportes = reportesDb.Select(r => new
+        // GET: api/reportes/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<object>> GetReporte(int id)
         {
-            r.Id,
-            r.TipoIncidente,
-            r.DescripcionDetallada,
-            r.Latitud,
-            r.Longitud,
-            r.Estado,
-            r.FechaCreacion,
-            
-            // Generar URL completa para la imagen
-            UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+            try
+            {
+                var r = await _context.Reportes
+                    .Include(reporte => reporte.Ciudadano)
+                    .FirstOrDefaultAsync(m => m.Id == id);
 
-            // Datos del usuario
-            Usuario = new {
-                Id = r.CiudadanoId,
-                Nombre = r.Ciudadano?.Nombre ?? "Usuario",
-                FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL)
+                if (r == null)
+                    return NotFound("Reporte no encontrado");
+
+                // Retornamos un objeto anónimo con las URLs procesadas
+                return Ok(new 
+                {
+                    r.Id,
+                    r.TipoIncidente,
+                    r.DescripcionDetallada,
+                    r.Latitud,
+                    r.Longitud,
+                    r.Estado,
+                    r.FechaCreacion,
+                    
+                    // URL procesada
+                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+
+                    Usuario = new {
+                        Id = r.CiudadanoId,
+                        Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
+                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                        Puntos = r.Ciudadano?.Puntos ?? 0
+                    }
+                });
             }
-        });
-
-        return Ok(misReportes);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al obtener los reportes del usuario {Id}", id);
-        return StatusCode(500, "Error interno del servidor");
-    }
-}
-
-       // GET: api/reportes/filtrar
-[HttpGet("filtrar")]
-public async Task<ActionResult<IEnumerable<object>>> FiltrarReportes(
-    [FromQuery] string? tipo = null, 
-    [FromQuery] string? estado = null)
-{
-    try
-    {
-        // 1. Construir la query
-        var query = _context.Reportes
-            .Include(r => r.Ciudadano) // <--- Incluir Usuario
-            .AsQueryable();
-
-        if (!string.IsNullOrEmpty(tipo))
-            query = query.Where(r => r.TipoIncidente == tipo);
-
-        if (!string.IsNullOrEmpty(estado))
-            query = query.Where(r => r.Estado == estado);
-
-        // 2. Ejecutar query en BD
-        var reportesDb = await query
-            .OrderByDescending(r => r.FechaCreacion)
-            .ToListAsync();
-
-        // 3. Transformar resultados (URLs completas y datos de usuario)
-        var resultado = reportesDb.Select(r => new 
-        {
-            r.Id,
-            r.TipoIncidente,
-            r.DescripcionDetallada,
-            r.Estado,
-            r.Latitud,
-            r.Longitud,
-            r.FechaCreacion,
-
-            // URL Foto Reporte
-            UrlFoto = GenerarUrlCompleta(r.UrlFoto),
-
-            // Datos Usuario
-            Usuario = new {
-                Id = r.CiudadanoId,
-                Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
-                FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL)
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener el reporte {Id}", id);
+                return StatusCode(500, "Error interno del servidor");
             }
-        });
-
-        return Ok(resultado);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al filtrar reportes");
-        return StatusCode(500, "Error interno del servidor");
-    }
-}
-       // GET: api/reportes/{id}
-[HttpGet("{id}")]
-public async Task<ActionResult<object>> GetReporte(int id)
-{
-    try
-    {
-        var r = await _context.Reportes
-            .Include(reporte => reporte.Ciudadano) // Incluir datos del usuario
-            .FirstOrDefaultAsync(m => m.Id == id);
-
-        if (r == null)
-            return NotFound("Reporte no encontrado");
-
-        // Retornamos un objeto anónimo con las URLs procesadas
-        return Ok(new 
-        {
-            r.Id,
-            r.TipoIncidente,
-            r.DescripcionDetallada,
-            r.Latitud,
-            r.Longitud,
-            r.Estado,
-            r.FechaCreacion,
-            
-            // URL procesada
-            UrlFoto = GenerarUrlCompleta(r.UrlFoto),
-
-            Usuario = new {
-                Id = r.CiudadanoId,
-                Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
-                FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL)
-            }
-        });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al obtener el reporte {Id}", id);
-        return StatusCode(500, "Error interno del servidor");
-    }
-}
+        }
 
         // GET: api/reportes/configuracion
         [HttpGet("configuracion")]
@@ -529,6 +634,48 @@ public async Task<ActionResult<object>> GetReporte(int id)
             }
         }
 
+        // MÉTODOS AUXILIARES
+        private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+        {
+            try
+            {
+                if (double.IsNaN(lat1) || double.IsNaN(lon1) || double.IsNaN(lat2) || double.IsNaN(lon2))
+                {
+                    return double.MaxValue;
+                }
+
+                const double R = 6371000; // Radio de la Tierra en metros
+                
+                var dLat = ToRadians(lat2 - lat1);
+                var dLon = ToRadians(lon2 - lon1);
+                
+                var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                        Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                        Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+                
+                var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+                return R * c;
+            }
+            catch (Exception)
+            {
+                return double.MaxValue;
+            }
+        }
+
+        private string? GenerarUrlCompleta(string? rutaRelativa)
+        {
+            if (string.IsNullOrEmpty(rutaRelativa)) return null;
+
+            var rutaLimpia = rutaRelativa.Replace("~/", "").Replace("\\", "/");
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            return $"{baseUrl}/{rutaLimpia}";
+        }
+
+        private static double ToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180;
+        }
+
         private bool CanWriteToDirectory(string path)
         {
             try
@@ -547,12 +694,11 @@ public async Task<ActionResult<object>> GetReporte(int id)
             }
         }
 
-        // Método auxiliar para obtener ubicación desde el request
         private async Task<Ubicacion?> ObtenerUbicacionDesdeRequest()
         {
             try
             {
-                // Opción 1: Desde headers personalizados (común en apps móviles)
+                // Opción 1: Desde headers personalizados
                 if (Request.Headers.TryGetValue("X-User-Latitude", out var latHeader) &&
                     Request.Headers.TryGetValue("X-User-Longitude", out var lonHeader))
                 {
@@ -567,8 +713,6 @@ public async Task<ActionResult<object>> GetReporte(int id)
                 if (!string.IsNullOrEmpty(ip) && ip != "::1")
                 {
                     // TODO: Implementar servicio de geolocalización por IP
-                    // var ubicacion = await _ipGeolocationService.GetLocationAsync(ip);
-                    // return ubicacion;
                 }
 
                 return null;
@@ -579,11 +723,9 @@ public async Task<ActionResult<object>> GetReporte(int id)
                 return null;
             }
         }
-
-        // Eliminado duplicado de CalculateDistance; se utiliza la única implementación "CORREGIDO" definida anteriormente.
     }
 
-    // Servicio de archivos
+    // SERVICIO DE ARCHIVOS
     public class ArchivoService
     {
         private readonly IWebHostEnvironment _environment;
@@ -593,8 +735,6 @@ public async Task<ActionResult<object>> GetReporte(int id)
         {
             _environment = environment;
             _logger = logger;
-            
-            // Asegurar que la carpeta existe al inicializar el servicio
             EnsureUploadDirectoryExists();
         }
 
@@ -635,7 +775,6 @@ public async Task<ActionResult<object>> GetReporte(int id)
 
             try
             {
-                // Verificar que WebRootPath existe
                 var webRootPath = GetWebRootPath();
                 if (string.IsNullOrEmpty(webRootPath))
                 {
@@ -645,14 +784,12 @@ public async Task<ActionResult<object>> GetReporte(int id)
 
                 var rutaCarpeta = Path.Combine(webRootPath, carpetaDestino);
                 
-                // Asegurar que la carpeta existe
                 if (!Directory.Exists(rutaCarpeta))
                 {
                     Directory.CreateDirectory(rutaCarpeta);
                     _logger.LogInformation($"Carpeta creada: {rutaCarpeta}");
                 }
 
-                // Validar extensión del archivo
                 var extensionesPermitidas = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
                 var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
                 
@@ -662,7 +799,6 @@ public async Task<ActionResult<object>> GetReporte(int id)
                     return null;
                 }
 
-                // Validar tamaño del archivo (5MB máximo)
                 const long maxFileSize = 5 * 1024 * 1024;
                 if (archivo.Length > maxFileSize)
                 {
@@ -670,13 +806,11 @@ public async Task<ActionResult<object>> GetReporte(int id)
                     return null;
                 }
 
-                // Generar nombre único
                 var nombreUnico = $"{Guid.NewGuid()}{extension}";
                 var rutaCompleta = Path.Combine(rutaCarpeta, nombreUnico);
 
                 _logger.LogInformation($"Intentando guardar archivo en: {rutaCompleta}");
 
-                // Guardar el archivo
                 using (var stream = new FileStream(rutaCompleta, FileMode.Create))
                 {
                     await archivo.CopyToAsync(stream);
@@ -710,7 +844,6 @@ public async Task<ActionResult<object>> GetReporte(int id)
                 if (string.IsNullOrEmpty(rutaRelativa))
                     return false;
 
-                // Convertir ruta relativa a ruta física
                 var rutaArchivo = rutaRelativa.Replace("~/", "");
                 var rutaCompleta = Path.Combine(GetWebRootPath(), rutaArchivo);
 
@@ -731,7 +864,7 @@ public async Task<ActionResult<object>> GetReporte(int id)
         }
     }
 
-    // DTOs y clases auxiliares
+    // DTOs Y CLASES AUXILIARES
     public class CrearReporteDto
     {
         public int CiudadanoId { get; set; }
@@ -755,5 +888,13 @@ public async Task<ActionResult<object>> GetReporte(int id)
     {
         public double Latitud { get; set; }
         public double Longitud { get; set; }
+    }
+
+    // NUEVO DTO PARA VALIDACIÓN
+    public class ValidacionDto
+    {
+        public int ReporteId { get; set; }
+        public int CiudadanoId { get; set; }
+        public bool EsPositiva { get; set; } // true = Positiva, false = Negativa
     }
 }

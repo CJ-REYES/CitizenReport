@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using System.Text.Json.Serialization; // Necesario para evitar ciclos en JSON
+using System.Text.Json.Serialization;
 
 namespace BackEnd.Model
 {
@@ -11,9 +11,14 @@ namespace BackEnd.Model
         public string PasswordHash { get; set; }
         public string Rol { get; set; }
         public string FotoPerfilURL { get; set; }
+        public int Puntos { get; set; } = 0; // Nueva propiedad de puntos
 
         // Propiedad de navegación (Un usuario tiene muchos reportes)
-        [JsonIgnore] // Evita ciclos infinitos al serializar a JSON
+        [JsonIgnore]
         public ICollection<Reporte>? Reportes { get; set; }
+
+        // Nueva propiedad de navegación (Un usuario tiene muchas validaciones realizadas)
+        [JsonIgnore]
+        public ICollection<ReporteValidacion>? ValidacionesRealizadas { get; set; }
     }
 }

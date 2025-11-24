@@ -15,14 +15,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const MapView = ({ currentUser }) => {
+const MapView = ({ currentUser, lastUpdate }) => {
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
   // Candelaria, Campeche, Mexico region settings
-  const candelariaCenter = [18.1833, -90.75]; // More accurate center for Candelaria
+  const candelariaCenter = [18.1833, -90.75];
   const candelariaBounds = [
       [17.5, -91.5], // Southwest
       [18.7, -90.0]  // Northeast
@@ -32,7 +32,7 @@ const MapView = ({ currentUser }) => {
     const storedReports = JSON.parse(localStorage.getItem('reports') || '[]');
     setReports(storedReports);
     setFilteredReports(storedReports);
-  }, []);
+  }, [lastUpdate]); // Reload when lastUpdate changes
 
   useEffect(() => {
     let filtered = reports;
@@ -115,7 +115,7 @@ const MapView = ({ currentUser }) => {
 
       {/* Map */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700">
-        <div className="h-[600px] relative">
+        <div className="h-[600px] relative z-0">
           <MapContainer
             center={candelariaCenter}
             zoom={10}
@@ -139,6 +139,7 @@ const MapView = ({ currentUser }) => {
                       {getStatusIcon(report.status)}
                       <span className="capitalize">{report.status}</span>
                     </div>
+                    {report.title && <p className="font-bold text-base mb-1">{report.title}</p>}
                     <p className="font-semibold text-sm mb-1">{report.type}</p>
                     <p className="text-xs text-slate-600 mb-2">{report.description}</p>
                     <p className="text-xs text-slate-500">Por: {report.username}</p>

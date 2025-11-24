@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -23,7 +22,6 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Basic field validation
     if (!email || !password || (!isLogin && !username)) {
       toast({
         title: "Error",
@@ -33,10 +31,9 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
       return;
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-       toast({
+      toast({
         title: "Error",
         description: "Por favor ingresa un email válido",
         variant: "destructive"
@@ -44,9 +41,8 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
       return;
     }
 
-    // Password validation
     if (password.length < 6) {
-        toast({
+      toast({
         title: "Error",
         description: "La contraseña debe tener al menos 6 caracteres",
         variant: "destructive"
@@ -57,8 +53,8 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
 
     if (isLogin) {
-      // Login logic
       const user = users.find(u => u.email === email && u.password === password);
+
       if (user) {
         onLogin(user);
         navigate('/');
@@ -70,7 +66,6 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
         });
       }
     } else {
-      // Register logic
       if (users.find(u => u.email === email)) {
         toast({
           title: "Error",
@@ -81,7 +76,7 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
       }
       
       if (users.find(u => u.username === username)) {
-         toast({
+        toast({
           title: "Error",
           description: "El nombre de usuario ya existe",
           variant: "destructive"
@@ -109,100 +104,125 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
       users.push(newUser);
       localStorage.setItem('users', JSON.stringify(users));
       onLogin(newUser);
-      
+
       toast({
         title: "¡Registro exitoso!",
         description: "Tu cuenta ha sido creada",
       });
+
       navigate('/');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+   <div className="min-h-screen bg-[#E8F5E9] flex items-center justify-center p-4">
+
+
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="bg-slate-800/50 backdrop-blur-lg rounded-2xl shadow-2xl border border-slate-700 p-8">
+
+        {/* Tarjeta */}
+        <div className="bg-white rounded-2xl shadow-xl border border-borderLight p-8">
+
+          {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
               <Shield className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">CiudadApp</h1>
-            <p className="text-slate-400">Reporta y mejora tu ciudad</p>
+            <h1 className="text-3xl font-bold text-textMain mb-2">CiudadApp</h1>
+            <p className="text-textMuted">Reporta y mejora tu ciudad</p>
           </div>
 
+          {/* Tabs */}
           <div className="flex gap-2 mb-6">
             <Button
               variant={isLogin ? "default" : "outline"}
               onClick={() => setIsLogin(true)}
-              className="flex-1"
+              className={`flex-1 ${
+                isLogin
+                  ? "bg-primary hover:bg-primaryDark text-white"
+                  : "border-primary text-primary"
+              }`}
             >
               <LogIn className="w-4 h-4 mr-2" />
               Iniciar Sesión
             </Button>
+
             <Button
               variant={!isLogin ? "default" : "outline"}
               onClick={() => setIsLogin(false)}
-              className="flex-1"
+              className={`flex-1 ${
+                !isLogin
+                  ? "bg-primary hover:bg-primaryDark text-white"
+                  : "border-primary text-primary"
+              }`}
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Registrarse
             </Button>
           </div>
 
+          {/* Formulario */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            
             {!isLogin && (
-                <div>
-                <Label htmlFor="username" className="text-white">Usuario</Label>
+              <div>
+                <Label htmlFor="username" className="text-textMain">Usuario</Label>
                 <input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full mt-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    placeholder="Tu nombre de usuario"
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full mt-1 px-4 py-2 bg-bgCard border border-borderLight rounded-lg text-textMain placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  placeholder="Tu nombre de usuario"
                 />
-                </div>
+              </div>
             )}
 
             <div>
-              <Label htmlFor="email" className="text-white">Email</Label>
+              <Label htmlFor="email" className="text-textMain">Email</Label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full mt-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full mt-1 px-4 py-2 bg-bgCard border border-borderLight rounded-lg text-textMain placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                 placeholder="tu@email.com"
               />
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-white">Contraseña</Label>
+              <Label htmlFor="password" className="text-textMain">Contraseña</Label>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full mt-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full mt-1 px-4 py-2 bg-bgCard border border-borderLight rounded-lg text-textMain placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                 placeholder="••••••••"
               />
             </div>
 
-            <Button type="submit" className="w-full">
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:bg-primaryDark text-white"
+            >
               {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
             </Button>
           </form>
 
-          <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <p className="text-sm text-blue-300 text-center">
+          {/* Demo */}
+          <div className="mt-6 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+            <p className="text-sm text-primaryDark text-center">
               💡 Demo: Usa admin@test.com / admin
             </p>
           </div>
+
         </div>
       </motion.div>
     </div>

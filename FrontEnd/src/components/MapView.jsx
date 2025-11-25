@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -21,18 +20,21 @@ const MapView = ({ currentUser, lastUpdate }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
-  // Candelaria, Campeche, Mexico region settings
-  const candelariaCenter = [18.1833, -90.75];
+  // Coordenadas de Candelaria, Campeche: 18.186356, -91.041947
+  const candelariaCenter = [18.186356, -91.041947]; 
+  
+  // LÍMITES ESTRICTOS: Restricción del movimiento a un área pequeña alrededor del centro.
+  // Esto hace que el mapa rebote inmediatamente si se intenta arrastrar fuera de esta zona.
   const candelariaBounds = [
-      [17.5, -91.5], // Southwest
-      [18.7, -90.0]  // Northeast
+      [18.136, -91.091], // Suroeste (Latitud y Longitud mínima)
+      [18.236, -90.991]  // Noreste (Latitud y Longitud máxima)
   ];
 
   useEffect(() => {
     const storedReports = JSON.parse(localStorage.getItem('reports') || '[]');
     setReports(storedReports);
     setFilteredReports(storedReports);
-  }, [lastUpdate]); // Reload when lastUpdate changes
+  }, [lastUpdate]);
 
   useEffect(() => {
     let filtered = reports;
@@ -118,10 +120,16 @@ const MapView = ({ currentUser, lastUpdate }) => {
         <div className="h-[600px] relative z-0">
           <MapContainer
             center={candelariaCenter}
-            zoom={10}
+            zoom={13} 
             style={{ height: '100%', width: '100%' }}
             maxBounds={candelariaBounds}
-            minZoom={9}
+            // maxBoundsViscosity en 1.0 hace que el mapa rebote fuertemente en los límites
+            maxBoundsViscosity={1.0} 
+            dragging={true} 
+            scrollWheelZoom={true}
+            doubleClickZoom={true} 
+            minZoom={12} // Permite alejarse un poco, pero no demasiado
+            maxZoom={18} // Permite acercarse para ver calles
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

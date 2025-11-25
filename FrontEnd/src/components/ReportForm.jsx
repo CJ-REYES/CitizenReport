@@ -27,11 +27,11 @@ const ReportForm = ({ currentUser, onReportSubmit, onPointsEarned }) => {
 
   const reportTypes = ['Bache', 'Alumbrado', 'Basura', 'Vandalismo', 'Otro'];
   
-  // Candelaria, Campeche, Mexico region settings
-  const candelariaCenter = [18.1833, -90.75];
+  // Configuraciones de región de Candelaria, Campeche, Mexico (LÍMITES ESTRICTOS)
+  const candelariaCenter = [18.186356, -91.041947]; 
   const candelariaBounds = [
-      [17.5, -91.5], // Southwest
-      [18.7, -90.0]  // Northeast
+      [18.136, -91.091], // Suroeste (Límites estrictos)
+      [18.236, -90.991]  // Noreste (Límites estrictos)
   ];
 
 
@@ -150,7 +150,15 @@ const ReportForm = ({ currentUser, onReportSubmit, onPointsEarned }) => {
           <div>
             <Label className="text-white mb-2 block flex items-center gap-2"><MapPin className="w-4 h-4" />Ubicación (Haz clic en el mapa)</Label>
             <div className="h-[400px] rounded-lg overflow-hidden border border-slate-600">
-              <MapContainer center={candelariaCenter} zoom={10} style={{ height: '100%', width: '100%' }} maxBounds={candelariaBounds} minZoom={9}>
+              <MapContainer 
+                center={candelariaCenter} 
+                zoom={13} // Zoom inicial
+                style={{ height: '100%', width: '100%' }} 
+                maxBounds={candelariaBounds} // Límites estrictos
+                maxBoundsViscosity={1.0} // Bloqueo estricto
+                minZoom={12} // Zoom mínimo
+                maxZoom={18} // Zoom máximo
+              >
                 <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <LocationSelector onLocationSelect={setLocation} selectedLocation={location} />
               </MapContainer>

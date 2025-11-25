@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
@@ -38,8 +37,12 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
 
   const reportTypes = ['Bache', 'Alumbrado', 'Basura', 'Vandalismo', 'Otro'];
   
-  // Candelaria, Campeche, Mexico region settings
-  const candelariaCenter = [18.1833, -90.75];
+  // Configuraciones de región de Candelaria, Campeche, Mexico (LÍMITES ESTRICTOS)
+  const candelariaCenter = [18.186356, -91.041947]; 
+  const candelariaBounds = [
+      [18.136, -91.091], // Suroeste (Límites estrictos)
+      [18.236, -90.991]  // Noreste (Límites estrictos)
+  ];
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -190,7 +193,15 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
           <div>
             <Label className="text-white mb-2 block flex items-center gap-2"><MapPin className="w-4 h-4" />Ubicación (Toca el mapa)</Label>
             <div className="h-[200px] rounded-lg overflow-hidden border border-slate-600 relative">
-              <MapContainer center={candelariaCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+              <MapContainer 
+                center={candelariaCenter} 
+                zoom={13} 
+                style={{ height: '100%', width: '100%' }}
+                maxBounds={candelariaBounds} // Límites estrictos
+                maxBoundsViscosity={1.0} // Bloqueo estricto
+                minZoom={12} // Zoom mínimo
+                maxZoom={18} // Zoom máximo
+              >
                 <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <LocationSelector onLocationSelect={setLocation} selectedLocation={location} />
               </MapContainer>

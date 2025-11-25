@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Menu, X, Map, Gamepad2, LayoutDashboard, Shield, User, Award, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+// 1. Importamos la función logout del servicio
+import { logout } from '../services/authService';
 
-// Aceptamos 'children' para poder envolver el contenido de la página
 const Navigation = ({ currentUser, onLogout, children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Definimos los items del menú principal (Izquierda)
-  // Nota: Quitamos 'Perfil' de aquí porque lo moveremos arriba
+  // Definimos los items del menú principal
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { id: 'map', label: 'Mapa', icon: Map, path: '/map' },
@@ -16,9 +16,21 @@ const Navigation = ({ currentUser, onLogout, children }) => {
     { id: 'leaderboard', label: 'Ranking', icon: Award, path: '/leaderboard' },
   ];
 
+  // Agregamos opción de admin si corresponde
   if (currentUser?.role === 'admin') {
     menuItems.push({ id: 'admin', label: 'Admin', icon: Shield, path: '/admin' });
   }
+
+  // 2. Manejador para el cierre de sesión
+  const handleLogoutClick = () => {
+    // A) Borrar datos del localStorage usando el servicio
+    logout(); 
+    
+    // B) Ejecutar la función que viene del padre (App.jsx) para actualizar el estado visual
+    if (onLogout) {
+      onLogout(); 
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -27,7 +39,7 @@ const Navigation = ({ currentUser, onLogout, children }) => {
         ========================================
       */}
 
-      {/* 1. SIDEBAR IZQUIERDO (Navegación) */}
+      {/* SIDEBAR IZQUIERDO */}
       <aside className="hidden lg:flex flex-col w-64 fixed inset-y-0 z-50 bg-slate-800 border-r border-slate-700">
         {/* Logo Area */}
         <div className="h-16 flex items-center px-6 border-b border-slate-700">
@@ -59,13 +71,12 @@ const Navigation = ({ currentUser, onLogout, children }) => {
           ))}
         </nav>
         
-        {/* Footer del Sidebar (Opcional, info de versión o similar) */}
         <div className="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
           v1.0.0 CiudadApp
         </div>
       </aside>
 
-      {/* 2. TOP BAR SUPERIOR (Perfil y Logout) */}
+      {/* TOP BAR SUPERIOR */}
       <header className="hidden lg:flex items-center justify-end h-16 fixed top-0 right-0 left-64 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-8">
         <div className="flex items-center space-x-4">
           {/* Enlace a Perfil */}
@@ -88,11 +99,11 @@ const Navigation = ({ currentUser, onLogout, children }) => {
 
           <div className="h-6 w-px bg-slate-700 mx-2" />
 
-          {/* Botón Salir */}
+          {/* Botón Salir (Escritorio) */}
           <Button 
             variant="destructive" 
             size="sm"
-            onClick={onLogout} 
+            onClick={handleLogoutClick} 
             className="flex items-center gap-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 transition-all"
           >
             <LogOut className="w-4 h-4" />
@@ -103,7 +114,7 @@ const Navigation = ({ currentUser, onLogout, children }) => {
 
 
       {/* ========================================
-        VISTA MÓVIL (Mobile) - Conservada
+        VISTA MÓVIL (Mobile)
         ========================================
       */}
       <header className="lg:hidden bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
@@ -128,7 +139,6 @@ const Navigation = ({ currentUser, onLogout, children }) => {
 
           {mobileMenuOpen && (
             <nav className="mt-4 pb-4 space-y-2 animate-in slide-in-from-top-2">
-              {/* Menu Items Móvil */}
               {menuItems.map(item => (
                 <NavLink
                   key={item.id}
@@ -149,7 +159,6 @@ const Navigation = ({ currentUser, onLogout, children }) => {
               ))}
               
               <div className="border-t border-slate-700 my-2 pt-2">
-                {/* Perfil Móvil */}
                 <NavLink 
                   to="/profile" 
                   onClick={() => setMobileMenuOpen(false)}
@@ -161,8 +170,12 @@ const Navigation = ({ currentUser, onLogout, children }) => {
                    </Button>
                 </NavLink>
 
-                {/* Salir Móvil */}
-                <Button variant="destructive" onClick={onLogout} className="w-full flex items-center justify-center gap-2">
+                {/* Botón Salir (Móvil) */}
+                <Button 
+                    variant="destructive" 
+                    onClick={handleLogoutClick} 
+                    className="w-full flex items-center justify-center gap-2"
+                >
                   <LogOut className="w-4 h-4" />
                   Salir
                 </Button>
@@ -172,12 +185,7 @@ const Navigation = ({ currentUser, onLogout, children }) => {
         </div>
       </header>
 
-      {/* ========================================
-        CONTENIDO PRINCIPAL 
-        ========================================
-        Ajustamos el padding izquierdo (lg:pl-64) para que el sidebar no tape el contenido
-        y el padding superior (lg:pt-16) para la barra superior.
-      */}
+      {/* CONTENIDO PRINCIPAL */}
       <main className="lg:pl-64 lg:pt-16 min-h-screen transition-all duration-300">
         <div className="container mx-auto p-4 lg:p-8">
           {children}

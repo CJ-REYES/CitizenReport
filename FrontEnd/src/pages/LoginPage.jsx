@@ -1,3 +1,5 @@
+// src/pages/LoginPage.jsx (Código actualizado)
+
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -5,23 +7,27 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { UserPlus, LogIn, Shield } from 'lucide-react';
+// Importamos las funciones del servicio
+import { registerUser, loginUser, storeAuthData } from '../services/authService'; // Asegúrate de que la ruta sea correcta
 
 const LoginPage = ({ onLogin, isAuthenticated }) => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // Usaremos 'username' como 'Nombre' para el backend
   const { toast } = useToast();
 
-  // If already authenticated, redirect to dashboard
+  // Si ya está autenticado, redirige al dashboard
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // --- [ VALIDACIONES DEL FRONTEND ] ---
+
     if (!email || !password || (!isLogin && !username)) {
       toast({
         title: "Error",
@@ -49,86 +55,62 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
       });
       return;
     }
+    
+    // --- [ LÓGICA DE LOGIN Y REGISTRO CON EL BACKEND ] ---
+    
+    try {
+        if (isLogin) {
+            // 1. Lógica de INICIO DE SESIÓN
+            const userData = await loginUser(email, password);
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
+            // 2. Almacenar datos y token en localStorage
+            storeAuthData(userData);
 
-    if (isLogin) {
-      const user = users.find(u => u.email === email && u.password === password);
+            // 3. Llamar a la función onLogin (para actualizar el estado global)
+            // Pasamos los datos que necesita el componente padre para saber que el usuario ha iniciado sesión
+            onLogin(userData); 
+            
+            navigate('/');
+        } else {
+            // 1. Lógica de REGISTRO
+            // Usamos 'username' para el campo 'Nombre' del backend
+            await registerUser(username, email, password);
 
-      if (user) {
-        onLogin(user);
-        navigate('/');
-      } else {
+            // 2. Mostrar toast de éxito
+            toast({
+                title: "¡Registro exitoso!",
+                description: "Tu cuenta ha sido creada. Por favor, inicia sesión.",
+            });
+
+            // 3. Mandar al usuario a la pestaña de login
+            setIsLogin(true); // Cambia a la pestaña de Iniciar Sesión
+
+            // Opcional: limpiar campos después de un registro exitoso
+            setEmail('');
+            setPassword('');
+            setUsername(''); 
+        }
+    } catch (error) {
+        console.error("Error de autenticación:", error.message);
         toast({
-          title: "Error",
-          description: "Email o contraseña incorrectos",
-          variant: "destructive"
+            title: "Error de Servidor",
+            description: error.message, // Muestra el mensaje de error del backend (e.g., "CREDENCIALES INVALIDAS")
+            variant: "destructive"
         });
-      }
-    } else {
-      if (users.find(u => u.email === email)) {
-        toast({
-          title: "Error",
-          description: "El email ya está registrado",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (users.find(u => u.username === username)) {
-        toast({
-          title: "Error",
-          description: "El nombre de usuario ya existe",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const newUser = {
-        id: Date.now().toString(),
-        username,
-        password,
-        email,
-        role: 'citizen',
-        points: 0,
-        rank: 'Ciudadano Novato',
-        reportsCount: 0,
-        gameStats: {
-          highScore: 0,
-          gamesPlayed: 0,
-          lives: 5
-        },
-        createdAt: new Date().toISOString()
-      };
-
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      onLogin(newUser);
-
-      toast({
-        title: "¡Registro exitoso!",
-        description: "Tu cuenta ha sido creada",
-      });
-
-      navigate('/');
     }
   };
 
   return (
    <div className="min-h-screen bg-[#E8F5E9] flex items-center justify-center p-4">
-
-
-
+      {/* ... (Todo el resto del JSX se mantiene igual) ... */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-
         {/* Tarjeta */}
         <div className="bg-white rounded-2xl shadow-xl border border-borderLight p-8">
-
           {/* Header */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
@@ -179,7 +161,7 @@ const LoginPage = ({ onLogin, isAuthenticated }) => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full mt-1 px-4 py-2 bg-bgCard border border-borderLight rounded-lg text-textMain placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-                  placeholder="Tu nombre de usuario"
+                  placeholder="Tu nombre (se usará como Nombre)"
                 />
               </div>
             )}

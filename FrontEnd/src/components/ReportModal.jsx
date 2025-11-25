@@ -11,10 +11,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Camera, MapPin, Send, FileText } from 'lucide-react';
+import { Camera, MapPin, Send, FileText, Loader2 } from 'lucide-react'; 
 import 'leaflet/dist/leaflet.css';
 
-// Location Selector Component for Map
+// Importamos el servicio
+import { createReport } from '../services/reportService'; 
+
+// Componente Selector de Ubicación (sin cambios)
 const LocationSelector = ({ onLocationSelect, selectedLocation }) => {
   useMapEvents({
     click(e) {
@@ -27,21 +30,22 @@ const LocationSelector = ({ onLocationSelect, selectedLocation }) => {
 
 const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) => {
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState('Bache');
-  const [photo, setPhoto] = useState(null);
+  const [photo, setPhoto] = useState(null); 
+  const [photoFile, setPhotoFile] = useState(null); // Objeto File binario (IFormFile)
   const [location, setLocation] = useState(null);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
   const { toast } = useToast();
 
   const reportTypes = ['Bache', 'Alumbrado', 'Basura', 'Vandalismo', 'Otro'];
   
-  // Configuraciones de región de Candelaria, Campeche, Mexico (LÍMITES ESTRICTOS)
+  // Configuraciones de región
   const candelariaCenter = [18.186356, -91.041947]; 
   const candelariaBounds = [
-      [18.136, -91.091], // Suroeste (Límites estrictos)
-      [18.236, -90.991]  // Noreste (Límites estrictos)
+      [18.136, -91.091], 
+      [18.236, -90.991]  
   ];
 
   const handlePhotoUpload = (e) => {
@@ -49,72 +53,97 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhoto(reader.result);
+        setPhoto(reader.result); // Base64 para el preview
       };
       reader.readAsDataURL(file);
+      
+      setPhotoFile(file); // Almacenamiento del archivo binario
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!title || !description || !location) {
+    if (loading) return;
+
+    // Validación de formulario
+    if (!description || !location) {
       toast({
         title: "Error de validación",
-        description: "Por favor completa el título, descripción y selecciona una ubicación.",
+        description: "Por favor completa la descripción y selecciona una ubicación en el mapa.",
         variant: "destructive"
       });
       return;
     }
-
-    const newReport = {
-      id: Date.now().toString(),
-      userId: currentUser.id,
-      username: currentUser.username,
-      title,
-      type,
-      description,
-      photo,
-      location: {
-        lat: location.lat,
-        lng: location.lng
-      },
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-
-    const reports = JSON.parse(localStorage.getItem('reports') || '[]');
-    reports.push(newReport);
-    localStorage.setItem('reports', JSON.stringify(reports));
-
-    // Update user stats
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex(u => u.id === currentUser.id);
-    if (userIndex !== -1) {
-      users[userIndex].reportsCount = (users[userIndex].reportsCount || 0) + 1;
-      localStorage.setItem('users', JSON.stringify(users));
-    }
-
-    const pointsEarned = 10;
-    if (onPointsEarned) {
-        onPointsEarned(pointsEarned);
-    }
-
-    toast({
-      title: "¡Reporte enviado!",
-      description: `Has ganado ${pointsEarned} puntos por tu reporte`,
-    });
-
-    // Reset form and close modal
-    setTitle('');
-    setDescription('');
-    setType('Bache');
-    setPhoto(null);
-    setLocation(null);
-    setOpen(false);
     
-    if (onReportSubmit) {
-        onReportSubmit();
+    setLoading(true);
+
+    try {
+        // CORRECCIÓN CLAVE: Obtener el token y la ID directamente de la prop currentUser
+        const storedToken = currentUser?.tokenJWT; 
+        const ciudadanoId = currentUser?.idUser; 
+        
+        if (!storedToken) {
+            // Este error saldrá si la propiedad tokenJWT está vacía en la prop
+            throw new Error("Token de usuario no disponible. Asegúrate de que el objeto currentUser contenga tokenJWT.");
+        }
+        
+        if (!ciudadanoId) {
+            // Este error saldrá si la propiedad idUser está vacía en la prop
+            throw new Error("ID de usuario no disponible. Asegúrate de que el objeto currentUser contenga idUser.");
+        }
+
+        // 1. CREACIÓN DEL PAYLOAD COMO FormData (OBLIGATORIO para IFormFile)
+        const formData = new FormData();
+        
+        // Mapeo a los campos del DTO 'CrearReporteConArchivoDto'
+        formData.append('CiudadanoId', ciudadanoId); // Usando la ID correcta
+        formData.append('TipoIncidente', type);
+        formData.append('DescripcionDetallada', description);
+        formData.append('Latitud', location.lat);
+        formData.append('Longitud', location.lng);
+        
+        // Adjuntar el archivo binario al campo esperado 'ArchivoFoto'
+        if (photoFile) {
+            formData.append('ArchivoFoto', photoFile, photoFile.name); 
+        }
+        
+        // 2. LLAMADA A LA API: Pasando formData y el storedToken
+        const response = await createReport(formData, storedToken); 
+        
+        // Manejo de éxito
+        const pointsEarned = 10; 
+        
+        if (onPointsEarned) {
+            onPointsEarned(pointsEarned);
+        }
+
+        toast({
+          title: "¡Reporte enviado!",
+          description: `Has ganado ${pointsEarned} puntos por tu reporte.`,
+        });
+
+        // 3. Resetear formulario y cerrar modal
+        setDescription('');
+        setType('Bache');
+        setPhoto(null);
+        setPhotoFile(null); 
+        setLocation(null);
+        setOpen(false);
+        
+        if (onReportSubmit) {
+            onReportSubmit(); 
+        }
+
+    } catch (error) {
+        console.error("Error al enviar el reporte:", error);
+        toast({
+            title: "Error al enviar",
+            description: error.message || "Ocurrió un error al intentar enviar el reporte.",
+            variant: "destructive"
+        });
+    } finally {
+        setLoading(false); 
     }
   };
 
@@ -141,16 +170,6 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div>
-                <Label htmlFor="title" className="text-white mb-2 block">Título del Reporte</Label>
-                <input 
-                    id="title"
-                    value={title} 
-                    onChange={(e) => setTitle(e.target.value)} 
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    placeholder="Ej: Bache en calle principal"
-                />
-            </div>
             <div>
                 <Label className="text-white mb-2 block">Categoría</Label>
                 <select 
@@ -197,10 +216,10 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
                 center={candelariaCenter} 
                 zoom={13} 
                 style={{ height: '100%', width: '100%' }}
-                maxBounds={candelariaBounds} // Límites estrictos
-                maxBoundsViscosity={1.0} // Bloqueo estricto
-                minZoom={12} // Zoom mínimo
-                maxZoom={18} // Zoom máximo
+                maxBounds={candelariaBounds} 
+                maxBoundsViscosity={1.0} 
+                minZoom={12} 
+                maxZoom={18} 
               >
                 <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <LocationSelector onLocationSelect={setLocation} selectedLocation={location} />
@@ -211,9 +230,22 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
           </div>
 
           <div className="pt-2">
-            <Button type="submit" className="w-full bg-gradient-to-r from-teal-500 to-sky-500 hover:from-teal-600 hover:to-sky-600 text-white border-0">
-                <Send className="w-4 h-4 mr-2" />
-                Enviar Reporte (+10 ptos)
+            <Button 
+                type="submit" 
+                className="w-full bg-gradient-to-r from-teal-500 to-sky-500 hover:from-teal-600 hover:to-sky-600 text-white border-0"
+                disabled={loading} 
+            >
+                {loading ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Enviando...
+                    </>
+                ) : (
+                    <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Enviar Reporte (+10 ptos)
+                    </>
+                )}
             </Button>
           </div>
         </form>

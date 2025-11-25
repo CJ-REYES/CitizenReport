@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BackEnd.Controllers
 {
@@ -15,13 +16,16 @@ namespace BackEnd.Controllers
     public class UsersControllers : ControllerBase
     {
         private readonly MyDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public UsersControllers(MyDbContext context)
+        public UsersControllers(MyDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         [HttpPost("register")]
+        [AllowAnonymous]
         public IActionResult Register(UserRegisterDTO dto)
         {
             // Valida si el email ya está registrado
@@ -126,6 +130,7 @@ namespace BackEnd.Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public IActionResult Login(UserLoginDTO dto)
         {
             // Buscar usuario por email
@@ -141,26 +146,22 @@ namespace BackEnd.Controllers
             var token = GenerateJwtToken(user);
 
             // Retornar respuesta
-            return Ok(new
-            {
-                IdUser = user.Id,
-                Email = user.Email,
-                NombreUser = user.Nombre,
-                TokenJWT = token,
-                Puntos = user.Puntos // NUEVO: Incluir puntos en el login
-            });
-        }
+    return Ok(new
+    {
+        IdUser = user.Id,
+        Email = user.Email,
+        NombreUser = user.Nombre,
+        TokenJWT = token,
+        Puntos = user.Puntos // NUEVO: Incluir puntos en el login
+    });
+}
 
-        private string GenerateJwtToken(User user)
-        {
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
-                .Build();
-            
-            var secretKey = configuration["Jwt:SecretKey"];
-            var expireHours = int.Parse(configuration["Jwt:ExpireHours"] ?? "2");
-            
-            var key = Encoding.UTF8.GetBytes(secretKey);
+private string GenerateJwtToken(User user)
+{
+    var secretKey = _configuration["Jwt:SecretKey"];
+    var expireHours = int.Parse(_configuration["Jwt:ExpireHours"] ?? "2");
+    
+    var key = Encoding.UTF8.GetBytes(secretKey);
 
             var claims = new[]
             {

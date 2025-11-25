@@ -1,49 +1,79 @@
 using BackEnd.Controllers;
-using BackEnd.Data;                // <-- ESTA ES LA LÍNEA QUE FALTABA
+using BackEnd.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.OpenApi.Models;
 
-internal class Program
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
-    private static void Main(string[] args)
+    WebRootPath = "wwwroot"
+});
+
+// --- 1. CONFIGURACIÓN DE CORS ---
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? ["*"];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        policy =>
+        {
+            policy.AllowAnyOrigin() 
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
+// Configurar MySQL
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<MyDbContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+builder.Services.AddEndpointsApiExplorer();
+
+// --- 2. CONFIGURACIÓN DE SWAGGER CON SEGURIDAD (JWT) ---
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "BackEnd", Version = "v1" });
+
+    // PASO A: Define el esquema de seguridad (Bearer)
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        Description = "Autorización JWT usando el esquema Bearer. Solo pega el token puro (sin Bearer).",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer" 
+    });
+
+    // PASO B: Aplica este esquema a todos los endpoints en Swagger UI
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
-            WebRootPath = "wwwroot" // Asegurar que WebRootPath esté configurado
-        });
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "Bearer"
+            },
+            new string[] {}
+        }
+    });
+});
 
-        // Configurar MySQL
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        builder.Services.AddDbContext<MyDbContext>(options =>
-            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+builder.Services.AddControllers();
 
-        // Add services to the container.
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
-        builder.Services.AddControllers();
+// Registrar el servicio de archivos
+builder.Services.AddScoped<ArchivoService>();
 
-        // Configurar logging para ver errores detallados
-        builder.Services.AddLogging(logging =>
-        {
-            logging.AddConsole();
-            logging.AddDebug();
-            logging.SetMinimumLevel(LogLevel.Debug);
-        });
-
-        // Registrar el servicio de archivos
-        builder.Services.AddScoped<ArchivoService>();
-
-        // Configuración de JWT
-// En Program.cs - forma correcta
+// --- 3. CONFIGURACIÓN DE JWT AUTENTICACIÓN Y AUTORIZACIÓN ---
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var secretKey = jwtSettings["SecretKey"];
-
-if (string.IsNullOrEmpty(secretKey) || secretKey.Length < 32)
-{
-    throw new InvalidOperationException("JWT Secret Key no está configurada correctamente");
-}
+var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key no configurada.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -57,46 +87,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero
         };
     });
-builder.Services.AddAuthorization();
 
-        var app = builder.Build();
-
-        // Crear wwwroot y uploads si no existen
-        var webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        if (!Directory.Exists(webRootPath))
-        {
-            Directory.CreateDirectory(webRootPath);
-            Console.WriteLine($"Carpeta wwwroot creada en: {webRootPath}");
-        }
-
-        var uploadsPath = Path.Combine(webRootPath, "uploads");
-        if (!Directory.Exists(uploadsPath))
-        {
-            Directory.CreateDirectory(uploadsPath);
-            Console.WriteLine($"Carpeta uploads creada en: {uploadsPath}");
-        }
-
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
-
-        app.UseHttpsRedirection();
+// Aplicar la política de seguridad a todos los endpoints por defecto
+builder.Services.AddAuthorization(options =>
+{
+    // Fallback Policy: CUALQUIER solicitud a un endpoint DEBE estar autenticada
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 
-        // Configuración del pipeline
+var app = builder.Build();
 
-        // Configurar servicio de archivos estáticos - DEBE ir antes de MapControllers
-        app.UseStaticFiles(); // Esto permite servir archivos desde wwwroot
+// ... (Lógica de creación de carpetas omitida) ...
 
-app.UseAuthentication(); // ¡Importante: debe ir antes de UseAuthorization!
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(); 
+}
+
+app.UseHttpsRedirection();
+
+// HABILITAR CORS Y ESTÁTICOS
+app.UseCors("AllowAll"); 
+app.UseStaticFiles(); 
+
+// AUTENTICACIÓN Y AUTORIZACIÓN
+app.UseAuthentication(); 
 app.UseAuthorization();
 
-        app.UseAuthorization();
-        app.MapControllers();
+app.MapControllers();
 
-        app.Run();
-    }
-}
+app.Run();

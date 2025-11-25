@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Model;
+using System.Security.Claims;
 
 namespace BackEnd.Controllers
 {
@@ -348,9 +349,9 @@ public async Task<IActionResult> ValidarReporte([FromBody] ValidacionDto validac
                 if (reporte == null)
                     return NotFound();
 
-                // Verificar que el reporte pertenezca al usuario actual y esté en estado "Pendiente" o "EnValidacion"
-                if (reporte.CiudadanoId != 1) // TODO: Reemplazar con ID del usuario autenticado
-                    return Forbid("No tiene permisos para eliminar este reporte");
+var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+if (reporte.CiudadanoId != userId)
+    return Forbid("No tiene permisos para eliminar este reporte");
 
                 if (reporte.Estado != "Pendiente" && reporte.Estado != "EnValidacion")
                     return BadRequest("Solo se pueden eliminar reportes en estado 'Pendiente' o 'EnValidacion'");

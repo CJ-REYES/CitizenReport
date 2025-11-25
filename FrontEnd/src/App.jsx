@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -59,26 +58,36 @@ function App() {
     }
   };
 
-  // Protected Route Wrapper
-  const ProtectedRoute = ({ children }) => {
-    if (!currentUser) {
-      return <Navigate to="/login" replace />;
-    }
-    return children;
-  };
-
   return (
     <Router>
       <Helmet>
         <title>CiudadApp - Mejora tu ciudad</title>
         <meta name="description" content="Plataforma gamificada para reportar problemas urbanos y mejorar tu ciudad." />
       </Helmet>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-        {currentUser && <Navigation currentUser={currentUser} onLogout={handleLogout} />}
-        
-        <main className={currentUser ? "container mx-auto px-4 py-6" : ""}>
+      
+      {/* LÓGICA PRINCIPAL:
+         1. Si hay usuario (currentUser), renderizamos Navigation envolviendo las rutas.
+         2. Si NO hay usuario, mostramos el contenedor de Login (sin sidebar).
+      */}
+      
+      {currentUser ? (
+        // VISTA AUTENTICADA: Navigation envuelve el contenido
+        <Navigation currentUser={currentUser} onLogout={handleLogout}>
           <Routes>
-            {/* Public Route */}
+            <Route path="/" element={<DashboardPage currentUser={currentUser} />} />
+            <Route path="/map" element={<MapPage currentUser={currentUser} onPointsEarned={handlePointsUpdate} />} />
+            <Route path="/arcade" element={<ArcadePage currentUser={currentUser} onPointsUpdate={handlePointsUpdate} />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/profile" element={<ProfilePage currentUser={currentUser} />} />
+            <Route path="/admin" element={<AdminPage currentUser={currentUser} />} />
+            {/* Cualquier otra ruta redirige al dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Navigation>
+      ) : (
+        // VISTA PÚBLICA / LOGIN: Fondo original, sin menú lateral
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+          <Routes>
             <Route 
               path="/login" 
               element={
@@ -88,23 +97,13 @@ function App() {
                 />
               } 
             />
-
-            {/* Protected Routes */}
-            <Route path="/" element={<ProtectedRoute><DashboardPage currentUser={currentUser} /></ProtectedRoute>} />
-            <Route path="/map" element={<ProtectedRoute><MapPage currentUser={currentUser} onPointsEarned={handlePointsUpdate} /></ProtectedRoute>} />
-            {/* /report route removed */}
-            <Route path="/arcade" element={<ProtectedRoute><ArcadePage currentUser={currentUser} onPointsUpdate={handlePointsUpdate} /></ProtectedRoute>} />
-            <Route path="/leaderboard" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage currentUser={currentUser} /></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><AdminPage currentUser={currentUser} /></ProtectedRoute>} />
-            
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Si intenta entrar a cualquier otra ruta sin loguearse, va al login */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
-        </main>
+        </div>
+      )}
 
-        <Toaster />
-      </div>
+      <Toaster />
     </Router>
   );
 }

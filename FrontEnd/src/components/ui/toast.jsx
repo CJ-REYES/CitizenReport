@@ -34,7 +34,9 @@ const toastVariants = cva(
 	},
 );
 
-const Toast = React.forwardRef(({ className, variant, ...props }, ref) => {
+// --- AQUÍ ESTÁ EL CAMBIO ---
+// Agregamos 'dismiss' a la desestructuración para separarlo de '...props'
+const Toast = React.forwardRef(({ className, variant, dismiss, ...props }, ref) => {
 	return (
 		<ToastPrimitives.Root
 			ref={ref}

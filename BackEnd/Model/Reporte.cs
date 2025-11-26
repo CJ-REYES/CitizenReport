@@ -10,13 +10,19 @@ public class Reporte
     [Required]
     public int CiudadanoId { get; set; }
 
-    // Propiedad de navegación (Un reporte pertenece a un usuario)
+    // Propiedad de navegación
     [ForeignKey("CiudadanoId")]
     public User? Ciudadano { get; set; }
 
     [Required]
     [MaxLength(100)]
     public string TipoIncidente { get; set; } = string.Empty;
+
+    // --- NUEVO CAMPO ---
+    [Required]
+    [MaxLength(100)]
+    public string Colonia { get; set; } = string.Empty;
+    // -------------------
 
     [Required]
     public string DescripcionDetallada { get; set; } = string.Empty;

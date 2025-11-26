@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import MapView from '@/components/MapView';
 import ReportModal from '@/components/ReportModal';
@@ -17,8 +16,8 @@ const MapPage = ({ currentUser, onPointsEarned }) => {
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Mapa de Reportes</h1>
-                    <p className="text-slate-400">Visualiza los problemas reportados en tu ciudad</p>
+                    <h1 className="text-2xl font-bold text-foreground">Mapa de Reportes</h1>
+                    <p className="text-muted-foreground">Visualiza los problemas reportados en tu ciudad</p>
                 </div>
                 <ReportModal 
                     currentUser={currentUser} 

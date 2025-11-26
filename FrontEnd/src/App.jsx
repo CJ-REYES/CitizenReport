@@ -46,46 +46,42 @@ function App() {
 
   const handlePointsUpdate = (points) => {
     if (!currentUser) return;
+    
+    // Lógica para actualizar los puntos y persistir el usuario
     const updatedUser = { ...currentUser, points: currentUser.points + points };
     setCurrentUser(updatedUser);
     localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-    
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex(u => u.id === updatedUser.id);
-    if (userIndex !== -1) {
-      users[userIndex].points = updatedUser.points;
-      localStorage.setItem('users', JSON.stringify(users));
-    }
+
+    toast({
+      title: "¡Puntos ganados!",
+      description: `Has ganado ${points} puntos. Total: ${updatedUser.points}`,
+    });
   };
 
   return (
     <Router>
       <Helmet>
-        <title>CiudadApp - Mejora tu ciudad</title>
-        <meta name="description" content="Plataforma gamificada para reportar problemas urbanos y mejorar tu ciudad." />
+        <title>CiudadApp - Plataforma de Impacto Ciudadano</title>
       </Helmet>
       
-      {/* LÓGICA PRINCIPAL:
-         1. Si hay usuario (currentUser), renderizamos Navigation envolviendo las rutas.
-         2. Si NO hay usuario, mostramos el contenedor de Login (sin sidebar).
-      */}
-      
       {currentUser ? (
-        // VISTA AUTENTICADA: Navigation envuelve el contenido
-        <Navigation currentUser={currentUser} onLogout={handleLogout}>
-          <Routes>
-            <Route path="/" element={<DashboardPage currentUser={currentUser} />} />
-            <Route path="/map" element={<MapPage currentUser={currentUser} onPointsEarned={handlePointsUpdate} />} />
-            <Route path="/arcade" element={<ArcadePage currentUser={currentUser} onPointsUpdate={handlePointsUpdate} />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/profile" element={<ProfilePage currentUser={currentUser} />} />
-            <Route path="/admin" element={<AdminPage currentUser={currentUser} />} />
-            {/* Cualquier otra ruta redirige al dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Navigation>
+        // VISTA AUTENTICADA: Solo Navigation envuelve el contenido
+        <div> 
+          <Navigation currentUser={currentUser} onLogout={handleLogout}>
+            <Routes>
+              <Route path="/" element={<DashboardPage currentUser={currentUser} />} />
+              <Route path="/map" element={<MapPage currentUser={currentUser} onPointsEarned={handlePointsUpdate} />} />
+              <Route path="/arcade" element={<ArcadePage currentUser={currentUser} onPointsUpdate={handlePointsUpdate} />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/profile" element={<ProfilePage currentUser={currentUser} />} />
+              <Route path="/admin" element={<AdminPage currentUser={currentUser} />} />
+              {/* Cualquier otra ruta redirige al dashboard */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Navigation>
+        </div>
       ) : (
-        // VISTA PÚBLICA / LOGIN: Fondo original, sin menú lateral
+        // VISTA PÚBLICA / LOGIN: Se mantiene el fondo de degradado para el login
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
           <Routes>
             <Route 

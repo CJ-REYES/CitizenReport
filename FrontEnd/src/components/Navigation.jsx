@@ -1,12 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Menu, X, Map, Gamepad2, LayoutDashboard, Shield, User, Award, LogOut } from 'lucide-react';
+import { Menu, X, Map, Gamepad2, LayoutDashboard, Shield, User, Award, LogOut, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-// 1. Importamos la función logout del servicio
 import { logout } from '../services/authService';
 
 const Navigation = ({ currentUser, onLogout, children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // 1. Lógica del tema: lee de localStorage o usa 'light' por defecto
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    // Tema 'light' por defecto si no hay nada guardado
+    return savedTheme || 'light'; 
+  });
+
+  // 2. useEffect para aplicar la clase 'dark' al elemento HTML
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // 3. Función para alternar el tema
+  const toggleTheme = () => {
+    setTheme(currentTheme => (currentTheme === 'dark' ? 'light' : 'dark'));
+  };
+
+  // Componente interno para el botón de cambio de tema
+  const ThemeToggle = ({ isMobile = false }) => (
+    <Button
+      variant="ghost"
+      size={isMobile ? "default" : "icon"}
+      onClick={toggleTheme}
+      className={`text-foreground dark:text-muted-foreground hover:bg-muted dark:hover:bg-accent/50 transition-colors ${
+        isMobile ? 'w-full justify-start mb-2' : ''
+      }`}
+      aria-label="Toggle theme"
+    >
+      {theme === 'light' ? (
+        <Moon className="w-5 h-5" /> // Mostrar la luna para cambiar a oscuro
+      ) : (
+        <Sun className="w-5 h-5" /> // Mostrar el sol para cambiar a claro
+      )}
+      {isMobile && <span>{theme === 'light' ? 'Tema Oscuro' : 'Tema Claro'}</span>}
+    </Button>
+  );
 
   // Definimos los items del menú principal
   const menuItems = [
@@ -21,34 +63,34 @@ const Navigation = ({ currentUser, onLogout, children }) => {
     menuItems.push({ id: 'admin', label: 'Admin', icon: Shield, path: '/admin' });
   }
 
-  // 2. Manejador para el cierre de sesión
+  // Manejador para el cierre de sesión
   const handleLogoutClick = () => {
-    // A) Borrar datos del localStorage usando el servicio
     logout(); 
-    
-    // B) Ejecutar la función que viene del padre (App.jsx) para actualizar el estado visual
     if (onLogout) {
       onLogout(); 
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    // Fondo general del contenido (fuera de la barra de navegación)
+    <div className="min-h-screen bg-background dark:bg-slate-900">
       {/* ========================================
         VISTA ESCRITORIO (Desktop) 
         ========================================
       */}
 
       {/* SIDEBAR IZQUIERDO */}
-      <aside className="hidden lg:flex flex-col w-64 fixed inset-y-0 z-50 bg-slate-800 border-r border-slate-700">
+      {/* CAMBIO: bg-secondary para el color verde claro */}
+      <aside className="hidden lg:flex flex-col w-64 fixed inset-y-0 z-50 bg-secondary dark:bg-secondary border-r border-border">
         {/* Logo Area */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-700">
+        <div className="h-16 flex items-center px-6 border-b border-border">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mr-3">
             <Map className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">CiudadApp</h1>
-            <p className="text-[10px] text-slate-400">Mejora tu ciudad</p>
+            {/* Texto: text-secondary-foreground para el tema claro, dark:text-foreground para el oscuro */}
+            <h1 className="text-lg font-bold text-secondary-foreground dark:text-foreground">CiudadApp</h1>
+            <p className="text-[10px] text-muted-foreground">Mejora tu ciudad</p>
           </div>
         </div>
 
@@ -59,8 +101,11 @@ const Navigation = ({ currentUser, onLogout, children }) => {
               {({ isActive }) => (
                 <Button
                   variant={isActive ? "default" : "ghost"}
+                  // Colores dinámicos para los enlaces
                   className={`w-full justify-start flex items-center space-x-3 ${
-                    isActive ? 'bg-blue-600 hover:bg-blue-700' : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                    isActive 
+                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
+                    : 'text-secondary-foreground dark:text-muted-foreground hover:bg-secondary/50 dark:hover:bg-accent/50 hover:text-primary dark:hover:text-foreground'
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
@@ -71,33 +116,43 @@ const Navigation = ({ currentUser, onLogout, children }) => {
           ))}
         </nav>
         
-        <div className="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
-          v1.0.0 CiudadApp
-        </div>
+        
       </aside>
 
       {/* TOP BAR SUPERIOR */}
-      <header className="hidden lg:flex items-center justify-end h-16 fixed top-0 right-0 left-64 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-8">
+      {/* CAMBIO: bg-card/95 para blanco/gris claro, dark:bg-card/95 para gris oscuro */}
+      <header className="hidden lg:flex items-center justify-end h-16 fixed top-0 right-0 left-64 z-40 bg-card/95 dark:bg-card/95 backdrop-blur border-b border-border px-8">
         <div className="flex items-center space-x-4">
+          {/* Toggle de Tema en Top Bar (Desktop) */}
+          <ThemeToggle />
+          
+          <div className="h-6 w-px bg-border mx-2" />
+          
           {/* Enlace a Perfil */}
           <NavLink to="/profile">
              {({ isActive }) => (
                 <Button 
                   variant="ghost" 
-                  className={`flex items-center space-x-2 ${isActive ? 'bg-slate-800 text-white' : 'text-slate-300'}`}
+                  className={`flex items-center space-x-2 ${
+                    isActive 
+                      // Activo: bg-secondary (light), dark:bg-secondary (dark)
+                      ? 'bg-secondary text-secondary-foreground dark:bg-secondary/50 dark:text-foreground' 
+                      // Inactivo: text-foreground (light), dark:text-muted-foreground (dark)
+                      : 'text-foreground dark:text-muted-foreground hover:bg-secondary dark:hover:bg-secondary/50'
+                  }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600">
-                    <User className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-full bg-border flex items-center justify-center border border-border">
+                    <User className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="text-right hidden xl:block">
-                    <p className="text-sm font-medium text-white leading-none">{currentUser?.name || 'Usuario'}</p>
-                    <p className="text-xs text-slate-400 mt-1">Ver Perfil</p>
+                    <p className="text-sm font-medium text-foreground leading-none">{currentUser?.name || 'Usuario'}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Ver Perfil</p>
                   </div>
                 </Button>
              )}
           </NavLink>
 
-          <div className="h-6 w-px bg-slate-700 mx-2" />
+          <div className="h-6 w-px bg-border mx-2" />
 
           {/* Botón Salir (Escritorio) */}
           <Button 
@@ -117,24 +172,28 @@ const Navigation = ({ currentUser, onLogout, children }) => {
         VISTA MÓVIL (Mobile)
         ========================================
       */}
-      <header className="lg:hidden bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+      <header className="lg:hidden bg-card dark:bg-card border-b border-border sticky top-0 z-50">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
                 <Map className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-lg font-bold text-white">CiudadApp</h1>
+              <h1 className="text-lg font-bold text-foreground">CiudadApp</h1>
             </div>
+            
+            <div className="flex items-center space-x-2">
+                <ThemeToggle isMobile={false} /> 
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-slate-300"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="text-muted-foreground hover:bg-muted"
+                >
+                  {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </Button>
+            </div>
           </div>
 
           {mobileMenuOpen && (
@@ -149,7 +208,11 @@ const Navigation = ({ currentUser, onLogout, children }) => {
                   {({ isActive }) => (
                     <Button
                       variant={isActive ? "default" : "ghost"}
-                      className="w-full justify-start flex items-center space-x-2"
+                      className={`w-full justify-start flex items-center space-x-2 ${
+                          isActive 
+                          ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
                     >
                       <item.icon className="w-4 h-4" />
                       <span>{item.label}</span>
@@ -158,19 +221,20 @@ const Navigation = ({ currentUser, onLogout, children }) => {
                 </NavLink>
               ))}
               
-              <div className="border-t border-slate-700 my-2 pt-2">
+              <div className="border-t border-border my-2 pt-2">
                 <NavLink 
                   to="/profile" 
                   onClick={() => setMobileMenuOpen(false)}
                   className="block mb-2"
                 >
-                   <Button variant="ghost" className="w-full justify-start text-slate-300">
+                   <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:bg-muted">
                       <User className="w-4 h-4 mr-2" />
                       Perfil
                    </Button>
                 </NavLink>
+                
+           
 
-                {/* Botón Salir (Móvil) */}
                 <Button 
                     variant="destructive" 
                     onClick={handleLogoutClick} 

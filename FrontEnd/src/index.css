@@ -5,7 +5,7 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222.2 84% 4.9%; /* Negro para el texto principal */
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -13,15 +13,15 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* 🎨 COLOR PRINCIPAL — VERDE DE TU LOGIN */
-    --primary: 138 62% 31%;
+    /* 🎨 COLOR PRINCIPAL VIVIDO — VERDE MÁS VIVO */
+    --primary: 138 62% 31%; /* Verde principal */
     --primary-foreground: 0 0% 98%;
 
-    /* 🎨 SECUNDARIO — VERDE MÁS SUAVE */
-    --secondary: 138 30% 90%;
-    --secondary-foreground: 138 62% 20%;
+    /* 🎨 SECUNDARIO VIVIDO — VERDE CLARO DEL SIDEBAR/NAV */
+    --secondary: 138 40% 90%; /* Verde claro para barra de navegación */
+    --secondary-foreground: 138 62% 20%; /* Texto principal sobre el verde claro */
 
-    /* 🎨 ACENTO — VERDE MEDIO */
+    /* 🎨 ACENTO */
     --accent: 138 40% 75%;
     --accent-foreground: 138 62% 20%;
 
@@ -37,37 +37,35 @@
     --radius: 0.5rem;
   }
 
-  }
- 
   .dark {
-   --background: 222 30% 6%;
-  --foreground: 210 40% 98%;
+    --background: 222 30% 6%;
+    --foreground: 210 40% 98%; /* Blanco para el texto principal */
 
-  --card: 222 30% 10%;
-  --card-foreground: 210 40% 98%;
+    --card: 222 30% 10%;
+    --card-foreground: 210 40% 98%;
 
-  --popover: 222 30% 10%;
-  --popover-foreground: 210 40% 98%;
+    --popover: 222 30% 10%;
+    --popover-foreground: 210 40% 98%;
 
-  /* 🍃 Verde clarito para dark mode */
-  --primary: 138 52% 48%;
-  --primary-foreground: 222 47% 11%;
+    /* 🍃 Verde clarito para dark mode */
+    --primary: 138 52% 48%;
+    --primary-foreground: 222 47% 11%;
 
-  --secondary: 222 25% 18%;
-  --secondary-foreground: 210 40% 98%;
+    --secondary: 222 25% 18%; /* Gris oscuro para el sidebar/nav */
+    --secondary-foreground: 210 40% 98%;
 
-  --muted: 222 25% 18%;
-  --muted-foreground: 215 20% 65%;
+    --muted: 222 25% 18%;
+    --muted-foreground: 215 20% 65%;
 
-  --accent: 222 25% 18%;
-  --accent-foreground: 210 40% 98%;
+    --accent: 222 25% 18%;
+    --accent-foreground: 210 40% 98%;
 
-  --destructive: 0 62% 45%;
-  --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 210 40% 98%;
 
-  --border: 222 25% 18%;
-  --input: 222 25% 18%;
-  --ring: 138 52% 48%;
+    --border: 222 25% 18%;
+    --input: 222 25% 18%;
+    --ring: 138 52% 48%;
   }
 
 
@@ -78,4 +76,5 @@
   body {
     @apply bg-background text-foreground;
   }
+}
 }

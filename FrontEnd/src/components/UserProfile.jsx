@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Star, Award, MapPin, Gamepad2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trophy, Star, Award, MapPin, Gamepad2, ChevronDown, ChevronUp, TrendingUp, Users } from 'lucide-react';
 import { getMyReports } from '@/services/reportService';
-import { getUserById } from '@/services/userService';
+import { getUserById, getRanking, getTopUsers } from '@/services/userService';
 import { useToast } from '@/components/ui/use-toast';
 
 const UserProfile = ({ currentUser }) => {
     const [userStats, setUserStats] = useState(currentUser);
     const [userReports, setUserReports] = useState([]);
+    const [ranking, setRanking] = useState([]);
+    const [topUsers, setTopUsers] = useState([]);
+    const [userRankPosition, setUserRankPosition] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showAllReports, setShowAllReports] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
         loadUserDataAndReports();
+        loadRankingData();
         
         // Configurar intervalo para actualización automática cada 30 segundos
         const intervalId = setInterval(() => {
             loadUserDataAndReports();
+            loadRankingData();
         }, 30000);
 
         return () => clearInterval(intervalId);
@@ -48,6 +53,28 @@ const UserProfile = ({ currentUser }) => {
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadRankingData = async () => {
+        try {
+            const [rankingData, topUsersData] = await Promise.all([
+                getRanking(),
+                getTopUsers()
+            ]);
+
+            setRanking(rankingData);
+            setTopUsers(topUsersData);
+
+            // Encontrar la posición del usuario actual en el ranking
+            const userPosition = rankingData.findIndex(user => 
+                user.id === (currentUser.idUser || currentUser.id)
+            );
+            if (userPosition !== -1) {
+                setUserRankPosition(userPosition + 1); // +1 porque el índice empieza en 0
+            }
+        } catch (error) {
+            console.error('Error cargando datos de ranking:', error);
         }
     };
 
@@ -116,24 +143,33 @@ const UserProfile = ({ currentUser }) => {
         return statusTextMap[status] || status;
     };
 
-    const getRankInfo = (points) => {
-        if (points >= 500) return { rank: 'Ciudadano Héroe', color: 'from-cyan-400 to-teal-500', icon: '🏆' };
-        if (points >= 300) return { rank: 'Ciudadano Ejemplar', color: 'from-sky-400 to-blue-500', icon: '⭐' };
-        if (points >= 150) return { rank: 'Ciudadano Vigía', color: 'from-emerald-400 to-green-500', icon: '👁️' };
-        if (points >= 50) return { rank: 'Ciudadano Activo', color: 'from-violet-400 to-purple-500', icon: '🎯' };
-        return { rank: 'Ciudadano Novato', color: 'bg-muted text-muted-foreground', icon: '🌱' };
+    // Calcular progreso al siguiente rango usando la misma lógica del backend
+    const getNextRankThreshold = (currentPoints) => {
+        if (currentPoints >= 1050) return { threshold: 1050, nextRank: 'Máximo' };
+        if (currentPoints >= 650) return { threshold: 1050, nextRank: 'Ciudadano Héroe' };
+        if (currentPoints >= 250) return { threshold: 650, nextRank: 'Ciudadano Ejemplar' };
+        if (currentPoints >= 100) return { threshold: 250, nextRank: 'Ciudadano Vigía' };
+        return { threshold: 100, nextRank: 'Ciudadano Activo' };
     };
 
     // Usar idUser para consistencia
     const userId = currentUser.idUser || currentUser.id;
     const userPoints = userStats.puntos || userStats.points || 0;
-    const rankInfo = getRankInfo(userPoints);
     
-    const nextRankPoints = userPoints >= 500 ? 500 :
-                        userPoints >= 300 ? 500 :
-                        userPoints >= 150 ? 300 :
-                        userPoints >= 50 ? 150 : 50;
-    const progress = (userPoints / nextRankPoints) * 100;
+    // Usar la información de rango del backend si está disponible
+    const rankInfo = userStats.rango ? {
+        rank: userStats.rango,
+        color: userStats.rankColor || 'bg-muted text-muted-foreground',
+        icon: userStats.rankIcon || '🌱'
+    } : {
+        // Fallback a cálculo local si el backend no envía la info
+        rank: userStats.rango || 'Ciudadano Novato',
+        color: 'bg-muted text-muted-foreground',
+        icon: '🌱'
+    };
+
+    const { threshold: nextRankPoints, nextRank } = getNextRankThreshold(userPoints);
+    const progress = userPoints >= 1050 ? 100 : (userPoints / nextRankPoints) * 100;
 
     // Determinar qué reportes mostrar
     const visibleReports = showAllReports ? userReports : userReports.slice(0, 3);
@@ -144,7 +180,7 @@ const UserProfile = ({ currentUser }) => {
             {/* Profile Header */}
             <div className="bg-background backdrop-blur-sm rounded-xl p-6 border border-border">
                 <div className="flex flex-col md:flex-row items-center gap-6">
-                    <div className={`w-24 h-24 ${rankInfo.rank === 'Ciudadano Novato' ? rankInfo.color : `bg-gradient-to-br ${rankInfo.color}`} rounded-full flex items-center justify-center text-4xl shadow-lg`}>
+                    <div className={`w-24 h-24 ${rankInfo.color.includes('from-') ? `bg-gradient-to-br ${rankInfo.color}` : rankInfo.color} rounded-full flex items-center justify-center text-4xl shadow-lg`}>
                         {rankInfo.icon}
                     </div>
                     <div className="flex-1 text-center md:text-left">
@@ -154,9 +190,18 @@ const UserProfile = ({ currentUser }) => {
                             <Award className="w-5 h-5 text-yellow-400" />
                             <span className="text-xl text-yellow-400 font-semibold">{rankInfo.rank}</span>
                         </div>
+                        
+                        {/* Información de ranking global */}
+                        {userRankPosition && (
+                            <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
+                                <TrendingUp className="w-4 h-4" />
+                                <span>Posición #{userRankPosition} en el ranking global</span>
+                            </div>
+                        )}
+
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                <span>Progreso al siguiente rango</span>
+                                <span>Progreso al siguiente rango: {nextRank}</span>
                                 <span>{userPoints} / {nextRankPoints} puntos</span>
                             </div>
                             <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
@@ -164,7 +209,13 @@ const UserProfile = ({ currentUser }) => {
                                     initial={{ width: 0 }}
                                     animate={{ width: `${Math.min(progress, 100)}%` }}
                                     transition={{ duration: 1, ease: "easeOut" }}
-                                    className="h-full bg-yellow-400"
+                                    className={`h-full ${
+                                        rankInfo.rank === 'Ciudadano Héroe' ? 'bg-gradient-to-r from-cyan-400 to-teal-500' :
+                                        rankInfo.rank === 'Ciudadano Ejemplar' ? 'bg-gradient-to-r from-sky-400 to-blue-500' :
+                                        rankInfo.rank === 'Ciudadano Vigía' ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
+                                        rankInfo.rank === 'Ciudadano Activo' ? 'bg-gradient-to-r from-violet-400 to-purple-500' :
+                                        'bg-yellow-400'
+                                    }`}
                                 />
                             </div>
                         </div>
@@ -192,20 +243,69 @@ const UserProfile = ({ currentUser }) => {
 
                 <motion.div whileHover={{ scale: 1.05 }} className="bg-background backdrop-blur-sm rounded-xl p-6 border border-border">
                     <div className="flex items-center gap-3 mb-2">
-                        <Gamepad2 className="w-8 h-8 text-violet-400" />
-                        <span className="text-muted-foreground">Vidas</span>
+                        <Users className="w-8 h-8 text-violet-400" />
+                        <span className="text-muted-foreground">Ranking</span>
                     </div>
-                    <p className="text-3xl font-bold text-foreground">{userStats.gameStats?.lives || 5}</p>
+                    <p className="text-3xl font-bold text-foreground">
+                        {userRankPosition ? `#${userRankPosition}` : '-'}
+                    </p>
                 </motion.div>
 
                 <motion.div whileHover={{ scale: 1.05 }} className="bg-background backdrop-blur-sm rounded-xl p-6 border border-border">
                     <div className="flex items-center gap-3 mb-2">
                         <Star className="w-8 h-8 text-amber-400" />
-                        <span className="text-muted-foreground">High Score</span>
+                        <span className="text-muted-foreground">Rango</span>
                     </div>
-                    <p className="text-3xl font-bold text-foreground">{userStats.gameStats?.highScore || 0}</p>
+                    <p className="text-lg font-bold text-foreground truncate" title={rankInfo.rank}>
+                        {rankInfo.rank}
+                    </p>
                 </motion.div>
             </div>
+
+            {/* Top 3 Usuarios */}
+            {topUsers.length > 0 && (
+                <div className="bg-background backdrop-blur-sm rounded-xl p-6 border border-border">
+                    <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+                        <Trophy className="w-6 h-6 text-yellow-400" />
+                        Top 3 Ciudadanos
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {topUsers.slice(0, 3).map((user, index) => (
+                            <motion.div 
+                                key={user.id}
+                                whileHover={{ scale: 1.02 }}
+                                className={`p-4 rounded-lg border ${
+                                    index === 0 ? 'bg-yellow-500/10 border-yellow-500/30' :
+                                    index === 1 ? 'bg-gray-400/10 border-gray-400/30' :
+                                    index === 2 ? 'bg-amber-700/10 border-amber-700/30' :
+                                    'bg-muted/50 border-border'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+                                        index === 0 ? 'bg-yellow-400' :
+                                        index === 1 ? 'bg-gray-400' :
+                                        'bg-amber-600'
+                                    }`}>
+                                        {user.rankIcon || '👤'}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-foreground truncate">
+                                            {user.nombre}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {user.puntos} puntos
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {user.rango}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Recent Reports */}
             <div className="bg-background backdrop-blur-sm rounded-xl p-6 border border-border">

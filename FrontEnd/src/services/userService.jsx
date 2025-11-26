@@ -96,3 +96,103 @@ export const updateUser = async (userId, userData) => {
         throw error;
     }
 };
+
+/**
+ * Obtiene el ranking completo de usuarios
+ */
+export const getRanking = async () => {
+    try {
+        const token = getAuthToken();
+        
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/ranking`, {
+            method: 'GET',
+            headers: headers
+        });
+
+        const data = await handleResponse(response);
+
+        if (!response.ok) {
+            const errorMessage = data.mensaje || data.message || data || 'Error al obtener el ranking';
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error en getRanking:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene el top 10 de usuarios
+ */
+export const getTopUsers = async () => {
+    try {
+        const token = getAuthToken();
+        
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/top`, {
+            method: 'GET',
+            headers: headers
+        });
+
+        const data = await handleResponse(response);
+
+        if (!response.ok) {
+            const errorMessage = data.mensaje || data.message || data || 'Error al obtener el top de usuarios';
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error en getTopUsers:", error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene todos los usuarios (para administración)
+ */
+export const getAllUsers = async () => {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error('No se encontró token de autenticación');
+        }
+
+        const response = await fetch(`${API_BASE_URL}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await handleResponse(response);
+
+        if (!response.ok) {
+            const errorMessage = data.mensaje || data.message || data || 'Error al obtener los usuarios';
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error en getAllUsers:", error);
+        throw error;
+    }
+};

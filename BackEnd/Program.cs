@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi.Models;
+using BackEnd.Services;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -70,6 +71,7 @@ builder.Services.AddControllers();
 
 // Registrar el servicio de archivos
 builder.Services.AddScoped<ArchivoService>();
+builder.Services.AddScoped<IUserRankService, UserRankService>();
 
 // --- 3. CONFIGURACIÓN DE JWT AUTENTICACIÓN Y AUTORIZACIÓN ---
 var jwtSettings = builder.Configuration.GetSection("Jwt");

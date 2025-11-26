@@ -11,7 +11,8 @@ namespace BackEnd.Model
         public string PasswordHash { get; set; }
         public string Rol { get; set; }
         public string FotoPerfilURL { get; set; }
-        public int Puntos { get; set; } = 0; // Nueva propiedad de puntos
+        public int Puntos { get; set; } = 0;
+        public string Rango { get; set; } = "Ciudadano Novato"; // Nueva propiedad de rango
 
         // Propiedad de navegación (Un usuario tiene muchos reportes)
         [JsonIgnore]

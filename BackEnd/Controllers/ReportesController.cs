@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Model;
 using System.Security.Claims;
+using BackEnd.DTOs;
+using BackEnd.Services;
 
 namespace BackEnd.Controllers
 {
@@ -13,12 +15,15 @@ namespace BackEnd.Controllers
         private readonly MyDbContext _context;
         private readonly ILogger<ReportesController> _logger;
         private readonly ArchivoService _archivoService;
+        private readonly IUserRankService _rankService;
 
-        public ReportesController(MyDbContext context, ILogger<ReportesController> logger, ArchivoService archivoService)
+        public ReportesController(MyDbContext context, ILogger<ReportesController> logger, 
+                                ArchivoService archivoService, IUserRankService rankService)
         {
             _context = context;
             _logger = logger;
             _archivoService = archivoService;
+            _rankService = rankService;
         }
 
         // GET: api/reportes
@@ -32,22 +37,28 @@ namespace BackEnd.Controllers
                     .OrderByDescending(r => r.FechaCreacion)
                     .ToListAsync();
 
-                var reportesConUrl = reportesDb.Select(r => new
-                {
-                    r.Id,
-                    r.TipoIncidente,
-                    r.DescripcionDetallada,
-                    r.Latitud,
-                    r.Longitud,
-                    r.Estado,
-                    r.FechaCreacion,
-                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
-                    Usuario = new {
-                        Id = r.CiudadanoId,
-                        Nombre = r.Ciudadano?.Nombre ?? "Usuario Desconocido",
-                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
-                        Puntos = r.Ciudadano?.Puntos ?? 0
-                    }
+                var reportesConUrl = reportesDb.Select(r => {
+                    var rankInfo = _rankService.GetRankInfo(r.Ciudadano?.Puntos ?? 0);
+                    return new
+                    {
+                        r.Id,
+                        r.TipoIncidente,
+                        r.DescripcionDetallada,
+                        r.Latitud,
+                        r.Longitud,
+                        r.Estado,
+                        r.FechaCreacion,
+                        UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+                        Usuario = new {
+                            Id = r.CiudadanoId,
+                            Nombre = r.Ciudadano?.Nombre ?? "Usuario Desconocido",
+                            FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                            Puntos = r.Ciudadano?.Puntos ?? 0,
+                            Rango = r.Ciudadano?.Rango ?? "Ciudadano Novato",
+                            RankColor = rankInfo.color,
+                            RankIcon = rankInfo.icon
+                        }
+                    };
                 });
 
                 return Ok(reportesConUrl);
@@ -145,12 +156,15 @@ namespace BackEnd.Controllers
                 }
 
                 _context.Reportes.Add(reporte);
-                // Otorgar +10 puntos al creador del reporte
-var creadorReporte = await _context.Users.FindAsync(crearReporteDto.CiudadanoId);
-if (creadorReporte != null)
-{
-    creadorReporte.Puntos += 10;
-}
+                
+                // MODIFICACIÓN: Otorgar +10 puntos al creador del reporte y actualizar rango
+                var creadorReporte = await _context.Users.FindAsync(crearReporteDto.CiudadanoId);
+                if (creadorReporte != null)
+                {
+                    creadorReporte.Puntos += 10;
+                    await _rankService.ActualizarRangoAsync(creadorReporte.Id);
+                }
+
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"Reporte creado exitosamente con ID: {reporte.Id}");
@@ -164,7 +178,6 @@ if (creadorReporte != null)
             }
         }
 
-        // GET: api/reportes/porvalidar/{idCiudadano}
         [HttpGet("porvalidar/{idCiudadano}")]
         public async Task<ActionResult<IEnumerable<object>>> GetReportesPorValidar(int idCiudadano)
         {
@@ -186,22 +199,28 @@ if (creadorReporte != null)
                     .ToListAsync();
 
                 // 3. Formatear respuesta
-                var reportesConUrl = reportesDb.Select(r => new
-                {
-                    r.Id,
-                    r.TipoIncidente,
-                    r.DescripcionDetallada,
-                    r.Latitud,
-                    r.Longitud,
-                    r.Estado,
-                    r.FechaCreacion,
-                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
-                    Usuario = new {
-                        Id = r.CiudadanoId,
-                        Nombre = r.Ciudadano?.Nombre ?? "Usuario Desconocido",
-                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
-                        Puntos = r.Ciudadano?.Puntos ?? 0
-                    }
+                var reportesConUrl = reportesDb.Select(r => {
+                    var rankInfo = _rankService.GetRankInfo(r.Ciudadano?.Puntos ?? 0);
+                    return new
+                    {
+                        r.Id,
+                        r.TipoIncidente,
+                        r.DescripcionDetallada,
+                        r.Latitud,
+                        r.Longitud,
+                        r.Estado,
+                        r.FechaCreacion,
+                        UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+                        Usuario = new {
+                            Id = r.CiudadanoId,
+                            Nombre = r.Ciudadano?.Nombre ?? "Usuario Desconocido",
+                            FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                            Puntos = r.Ciudadano?.Puntos ?? 0,
+                            Rango = r.Ciudadano?.Rango ?? "Ciudadano Novato",
+                            RankColor = rankInfo.color,
+                            RankIcon = rankInfo.icon
+                        }
+                    };
                 });
 
                 return Ok(reportesConUrl);
@@ -214,104 +233,107 @@ if (creadorReporte != null)
         }
 
         // POST: api/reportes/validar
-[HttpPost("validar")]
-public async Task<IActionResult> ValidarReporte([FromBody] ValidacionDto validacionDto)
-{
-    try
-    {
-        // 1. Verificar que el reporte exista y esté en validación
-        var reporte = await _context.Reportes
-            .FirstOrDefaultAsync(r => r.Id == validacionDto.ReporteId && r.Estado == "EnValidacion");
-        
-        if (reporte == null)
-            return BadRequest("El reporte no existe o no está en validación.");
-
-        // 2. Verificar que el ciudadano no sea el creador del reporte
-        if (reporte.CiudadanoId == validacionDto.CiudadanoId)
-            return BadRequest("No puedes validar tu propio reporte.");
-
-        // 3. Verificar que el ciudadano no haya validado previamente este reporte
-        var validacionExistente = await _context.ReporteValidaciones
-            .FirstOrDefaultAsync(rv => rv.ReporteId == validacionDto.ReporteId && 
-                                    rv.CiudadanoId == validacionDto.CiudadanoId);
-        
-        if (validacionExistente != null)
-            return BadRequest("Ya has validado este reporte.");
-
-        // 4. Registrar la nueva validación
-        var validacion = new ReporteValidacion
+        [HttpPost("validar")]
+        public async Task<IActionResult> ValidarReporte([FromBody] ValidacionDto validacionDto)
         {
-            ReporteId = validacionDto.ReporteId,
-            CiudadanoId = validacionDto.CiudadanoId,
-            EsPositiva = validacionDto.EsPositiva,
-            FechaValidacion = DateTime.Now
-        };
-        _context.ReporteValidaciones.Add(validacion);
-
-        // 5. Otorgar +5 puntos al ciudadano que valida
-        var ciudadanoValidador = await _context.Users.FindAsync(validacionDto.CiudadanoId);
-        if (ciudadanoValidador != null)
-        {
-            ciudadanoValidador.Puntos += 5;
-        }
-
-        // **CORRECCIÓN: Guardar cambios ANTES de contar las validaciones**
-        await _context.SaveChangesAsync();
-
-        // 6. Contar validaciones positivas y negativas (AHORA INCLUYE LA NUEVA VALIDACIÓN)
-        var validacionesReporte = await _context.ReporteValidaciones
-            .Where(rv => rv.ReporteId == validacionDto.ReporteId)
-            .ToListAsync();
-
-        int validacionesPositivas = validacionesReporte.Count(v => v.EsPositiva);
-        int validacionesNegativas = validacionesReporte.Count(v => !v.EsPositiva);
-
-        // 7. Aplicar lógica de cambio de estado y puntos
-        bool cambioEstado = false;
-        if (validacionesPositivas >= 10)
-        {
-            reporte.Estado = "Validado";
-            cambioEstado = true;
-            // Otorgar +10 puntos al creador del reporte
-            var creadorReporte = await _context.Users.FindAsync(reporte.CiudadanoId);
-            if (creadorReporte != null)
+            try
             {
-                creadorReporte.Puntos += 5;
+                // 1. Verificar que el reporte exista y esté en validación
+                var reporte = await _context.Reportes
+                    .FirstOrDefaultAsync(r => r.Id == validacionDto.ReporteId && r.Estado == "EnValidacion");
+                
+                if (reporte == null)
+                    return BadRequest("El reporte no existe o no está en validación.");
+
+                // 2. Verificar que el ciudadano no sea el creador del reporte
+                if (reporte.CiudadanoId == validacionDto.CiudadanoId)
+                    return BadRequest("No puedes validar tu propio reporte.");
+
+                // 3. Verificar que el ciudadano no haya validado previamente este reporte
+                var validacionExistente = await _context.ReporteValidaciones
+                    .FirstOrDefaultAsync(rv => rv.ReporteId == validacionDto.ReporteId && 
+                                            rv.CiudadanoId == validacionDto.CiudadanoId);
+                
+                if (validacionExistente != null)
+                    return BadRequest("Ya has validado este reporte.");
+
+                // 4. Registrar la nueva validación
+                var validacion = new ReporteValidacion
+                {
+                    ReporteId = validacionDto.ReporteId,
+                    CiudadanoId = validacionDto.CiudadanoId,
+                    EsPositiva = validacionDto.EsPositiva,
+                    FechaValidacion = DateTime.Now
+                };
+                _context.ReporteValidaciones.Add(validacion);
+
+                // MODIFICACIÓN: Otorgar +5 puntos al ciudadano que valida y actualizar rango
+                var ciudadanoValidador = await _context.Users.FindAsync(validacionDto.CiudadanoId);
+                if (ciudadanoValidador != null)
+                {
+                    ciudadanoValidador.Puntos += 5;
+                    await _rankService.ActualizarRangoAsync(ciudadanoValidador.Id);
+                }
+
+                // Guardar cambios ANTES de contar las validaciones
+                await _context.SaveChangesAsync();
+
+                // 6. Contar validaciones positivas y negativas (AHORA INCLUYE LA NUEVA VALIDACIÓN)
+                var validacionesReporte = await _context.ReporteValidaciones
+                    .Where(rv => rv.ReporteId == validacionDto.ReporteId)
+                    .ToListAsync();
+
+                int validacionesPositivas = validacionesReporte.Count(v => v.EsPositiva);
+                int validacionesNegativas = validacionesReporte.Count(v => !v.EsPositiva);
+
+                // 7. Aplicar lógica de cambio de estado y puntos
+                bool cambioEstado = false;
+                if (validacionesPositivas >= 10)
+                {
+                    reporte.Estado = "Validado";
+                    cambioEstado = true;
+                    // MODIFICACIÓN: Otorgar +5 puntos al creador del reporte y actualizar rango
+                    var creadorReporte = await _context.Users.FindAsync(reporte.CiudadanoId);
+                    if (creadorReporte != null)
+                    {
+                        creadorReporte.Puntos += 5;
+                        await _rankService.ActualizarRangoAsync(creadorReporte.Id);
+                    }
+                }
+                else if (validacionesNegativas >= 10)
+                {
+                    reporte.Estado = "Rechazado";
+                    cambioEstado = true;
+                    // MODIFICACIÓN: Restar -10 puntos al creador del reporte y actualizar rango
+                    var creadorReporte = await _context.Users.FindAsync(reporte.CiudadanoId);
+                    if (creadorReporte != null)
+                    {
+                        creadorReporte.Puntos -= 10;
+                        if (creadorReporte.Puntos < 0) creadorReporte.Puntos = 0;
+                        await _rankService.ActualizarRangoAsync(creadorReporte.Id);
+                    }
+                }
+
+                // Guardar cambios solo si hubo cambio de estado
+                if (cambioEstado)
+                {
+                    await _context.SaveChangesAsync();
+                }
+
+                return Ok(new { 
+                    Mensaje = "Validación registrada correctamente",
+                    PuntosOtorgados = 5,
+                    EstadoActual = reporte.Estado,
+                    ValidacionesPositivas = validacionesPositivas,
+                    ValidacionesNegativas = validacionesNegativas
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al validar reporte");
+                return StatusCode(500, "Error interno del servidor");
             }
         }
-        else if (validacionesNegativas >= 10)
-        {
-            reporte.Estado = "Rechazado";
-            cambioEstado = true;
-            // Restar -15 puntos al creador del reporte
-            var creadorReporte = await _context.Users.FindAsync(reporte.CiudadanoId);
-            if (creadorReporte != null)
-            {
-                creadorReporte.Puntos -= 10;
-                if (creadorReporte.Puntos < 0) creadorReporte.Puntos = 0;
-            }
-        }
-
-        // **CORRECCIÓN: Guardar cambios solo si hubo cambio de estado**
-        if (cambioEstado)
-        {
-            await _context.SaveChangesAsync();
-        }
-
-        return Ok(new { 
-            Mensaje = "Validación registrada correctamente",
-            PuntosOtorgados = 5,
-            EstadoActual = reporte.Estado,
-            ValidacionesPositivas = validacionesPositivas,
-            ValidacionesNegativas = validacionesNegativas
-        });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al validar reporte");
-        return StatusCode(500, "Error interno del servidor");
-    }
-}
 
         // PUT: api/reportes/5
         [HttpPut("{id}")]
@@ -349,9 +371,9 @@ public async Task<IActionResult> ValidarReporte([FromBody] ValidacionDto validac
                 if (reporte == null)
                     return NotFound();
 
-var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-if (reporte.CiudadanoId != userId)
-    return Forbid("No tiene permisos para eliminar este reporte");
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+                if (reporte.CiudadanoId != userId)
+                    return Forbid("No tiene permisos para eliminar este reporte");
 
                 if (reporte.Estado != "Pendiente" && reporte.Estado != "EnValidacion")
                     return BadRequest("Solo se pueden eliminar reportes en estado 'Pendiente' o 'EnValidacion'");
@@ -374,7 +396,6 @@ if (reporte.CiudadanoId != userId)
             }
         }
 
-        // GET: api/reportes/cercanos
         [HttpGet("cercanos")]
         public async Task<ActionResult<IEnumerable<object>>> GetReportesCercanos(
             [FromQuery] double? latitud = null, 
@@ -417,29 +438,35 @@ if (reporte.CiudadanoId != userId)
 
                 // 3. Procesamiento en Memoria (Cálculo exacto y URLs)
                 var reportesCercanos = reportesEnArea
-                    .Select(r => new
-                    {
-                        r.Id,
-                        r.TipoIncidente,
-                        r.Estado,
-                        r.Latitud,
-                        r.Longitud,
-                        r.DescripcionDetallada,
-                        r.FechaCreacion,
-                        
-                        // Convertimos URL relativa a absoluta
-                        UrlFoto = GenerarUrlCompleta(r.UrlFoto), 
+                    .Select(r => {
+                        var rankInfo = _rankService.GetRankInfo(r.Ciudadano?.Puntos ?? 0);
+                        return new
+                        {
+                            r.Id,
+                            r.TipoIncidente,
+                            r.Estado,
+                            r.Latitud,
+                            r.Longitud,
+                            r.DescripcionDetallada,
+                            r.FechaCreacion,
+                            
+                            // Convertimos URL relativa a absoluta
+                            UrlFoto = GenerarUrlCompleta(r.UrlFoto), 
 
-                        // Datos del Usuario
-                        Usuario = new {
-                            Id = r.CiudadanoId,
-                            Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
-                            FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
-                            Puntos = r.Ciudadano?.Puntos ?? 0
-                        },
+                            // Datos del Usuario
+                            Usuario = new {
+                                Id = r.CiudadanoId,
+                                Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
+                                FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                                Puntos = r.Ciudadano?.Puntos ?? 0,
+                                Rango = r.Ciudadano?.Rango ?? "Ciudadano Novato",
+                                RankColor = rankInfo.color,
+                                RankIcon = rankInfo.icon
+                            },
 
-                        // Cálculo de distancia
-                        DistanciaMetros = CalculateDistance(userLatitud, userLongitud, r.Latitud, r.Longitud)
+                            // Cálculo de distancia
+                            DistanciaMetros = CalculateDistance(userLatitud, userLongitud, r.Latitud, r.Longitud)
+                        };
                     })
                     .Where(r => r.DistanciaMetros <= radioMetros)
                     .OrderBy(r => r.DistanciaMetros)
@@ -481,26 +508,32 @@ if (reporte.CiudadanoId != userId)
                     .ToListAsync();
 
                 // 3. Formatear la respuesta con URLs completas
-                var misReportes = reportesDb.Select(r => new
-                {
-                    r.Id,
-                    r.TipoIncidente,
-                    r.DescripcionDetallada,
-                    r.Latitud,
-                    r.Longitud,
-                    r.Estado,
-                    r.FechaCreacion,
-                    
-                    // Generar URL completa para la imagen
-                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+                var misReportes = reportesDb.Select(r => {
+                    var rankInfo = _rankService.GetRankInfo(r.Ciudadano?.Puntos ?? 0);
+                    return new
+                    {
+                        r.Id,
+                        r.TipoIncidente,
+                        r.DescripcionDetallada,
+                        r.Latitud,
+                        r.Longitud,
+                        r.Estado,
+                        r.FechaCreacion,
+                        
+                        // Generar URL completa para la imagen
+                        UrlFoto = GenerarUrlCompleta(r.UrlFoto),
 
-                    // Datos del usuario
-                    Usuario = new {
-                        Id = r.CiudadanoId,
-                        Nombre = r.Ciudadano?.Nombre ?? "Usuario",
-                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
-                        Puntos = r.Ciudadano?.Puntos ?? 0
-                    }
+                        // Datos del usuario
+                        Usuario = new {
+                            Id = r.CiudadanoId,
+                            Nombre = r.Ciudadano?.Nombre ?? "Usuario",
+                            FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                            Puntos = r.Ciudadano?.Puntos ?? 0,
+                            Rango = r.Ciudadano?.Rango ?? "Ciudadano Novato",
+                            RankColor = rankInfo.color,
+                            RankIcon = rankInfo.icon
+                        }
+                    };
                 });
 
                 return Ok(misReportes);
@@ -537,26 +570,32 @@ if (reporte.CiudadanoId != userId)
                     .ToListAsync();
 
                 // 3. Transformar resultados (URLs completas y datos de usuario)
-                var resultado = reportesDb.Select(r => new 
-                {
-                    r.Id,
-                    r.TipoIncidente,
-                    r.DescripcionDetallada,
-                    r.Estado,
-                    r.Latitud,
-                    r.Longitud,
-                    r.FechaCreacion,
+                var resultado = reportesDb.Select(r => {
+                    var rankInfo = _rankService.GetRankInfo(r.Ciudadano?.Puntos ?? 0);
+                    return new 
+                    {
+                        r.Id,
+                        r.TipoIncidente,
+                        r.DescripcionDetallada,
+                        r.Estado,
+                        r.Latitud,
+                        r.Longitud,
+                        r.FechaCreacion,
 
-                    // URL Foto Reporte
-                    UrlFoto = GenerarUrlCompleta(r.UrlFoto),
+                        // URL Foto Reporte
+                        UrlFoto = GenerarUrlCompleta(r.UrlFoto),
 
-                    // Datos Usuario
-                    Usuario = new {
-                        Id = r.CiudadanoId,
-                        Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
-                        FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
-                        Puntos = r.Ciudadano?.Puntos ?? 0
-                    }
+                        // Datos Usuario
+                        Usuario = new {
+                            Id = r.CiudadanoId,
+                            Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
+                            FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
+                            Puntos = r.Ciudadano?.Puntos ?? 0,
+                            Rango = r.Ciudadano?.Rango ?? "Ciudadano Novato",
+                            RankColor = rankInfo.color,
+                            RankIcon = rankInfo.icon
+                        }
+                    };
                 });
 
                 return Ok(resultado);
@@ -581,6 +620,8 @@ if (reporte.CiudadanoId != userId)
                 if (r == null)
                     return NotFound("Reporte no encontrado");
 
+                var rankInfo = _rankService.GetRankInfo(r.Ciudadano?.Puntos ?? 0);
+
                 // Retornamos un objeto anónimo con las URLs procesadas
                 return Ok(new 
                 {
@@ -599,7 +640,10 @@ if (reporte.CiudadanoId != userId)
                         Id = r.CiudadanoId,
                         Nombre = r.Ciudadano?.Nombre ?? "Desconocido",
                         FotoPerfil = GenerarUrlCompleta(r.Ciudadano?.FotoPerfilURL),
-                        Puntos = r.Ciudadano?.Puntos ?? 0
+                        Puntos = r.Ciudadano?.Puntos ?? 0,
+                        Rango = r.Ciudadano?.Rango ?? "Ciudadano Novato",
+                        RankColor = rankInfo.color,
+                        RankIcon = rankInfo.icon
                     }
                 });
             }

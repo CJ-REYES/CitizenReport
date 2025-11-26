@@ -34,7 +34,6 @@ const ReportForm = ({ currentUser, onReportSubmit, onPointsEarned }) => {
       [18.236, -90.991]  // Noreste (Límites estrictos)
   ];
 
-
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -109,20 +108,20 @@ const ReportForm = ({ currentUser, onReportSubmit, onPointsEarned }) => {
       transition={{ duration: 0.5 }}
       className="max-w-4xl mx-auto"
     >
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+      <div className="bg-background backdrop-blur-sm rounded-xl p-6 border border-border">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-sky-500 rounded-xl flex items-center justify-center">
             <Send className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Crear Reporte</h2>
-            <p className="text-slate-400 text-sm">Ayuda a mejorar tu ciudad</p>
+            <h2 className="text-2xl font-bold text-foreground">Crear Reporte</h2>
+            <p className="text-muted-foreground text-sm">Ayuda a mejorar tu ciudad</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <Label className="text-white mb-2 block">Tipo de Reporte</Label>
+            <Label className="text-foreground mb-2 block">Tipo de Reporte</Label>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {reportTypes.map(t => (
                 <Button key={t} type="button" variant={type === t ? 'default' : 'outline'} onClick={() => setType(t)} className="w-full">{t}</Button>
@@ -131,12 +130,18 @@ const ReportForm = ({ currentUser, onReportSubmit, onPointsEarned }) => {
           </div>
 
           <div>
-            <Label htmlFor="description" className="text-white mb-2 block">Descripción</Label>
-            <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all min-h-[120px]" placeholder="Describe el problema en detalle..." />
+            <Label htmlFor="description" className="text-foreground mb-2 block">Descripción</Label>
+            <textarea 
+              id="description" 
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+              className="w-full px-4 py-3 bg-muted border border-input rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all min-h-[120px]" 
+              placeholder="Describe el problema en detalle..." 
+            />
           </div>
 
           <div>
-            <Label className="text-white mb-2 block">Foto (Opcional)</Label>
+            <Label className="text-foreground mb-2 block">Foto (Opcional)</Label>
             <div className="flex gap-4">
               <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
                 <Camera className="w-4 h-4" />
@@ -148,8 +153,8 @@ const ReportForm = ({ currentUser, onReportSubmit, onPointsEarned }) => {
           </div>
 
           <div>
-            <Label className="text-white mb-2 block flex items-center gap-2"><MapPin className="w-4 h-4" />Ubicación (Haz clic en el mapa)</Label>
-            <div className="h-[400px] rounded-lg overflow-hidden border border-slate-600">
+            <Label className="text-foreground mb-2 block flex items-center gap-2"><MapPin className="w-4 h-4" />Ubicación (Haz clic en el mapa)</Label>
+            <div className="h-[400px] rounded-lg overflow-hidden border border-input">
               <MapContainer 
                 center={candelariaCenter} 
                 zoom={13} // Zoom inicial

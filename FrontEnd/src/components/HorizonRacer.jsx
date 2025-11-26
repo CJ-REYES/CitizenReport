@@ -338,34 +338,34 @@ const MetalSlugger = ({ currentUser, onPointsUpdate }) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto">
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
+      <div className="bg-background backdrop-blur-sm rounded-xl p-6 border border-border">
         <div className="flex items-center justify-between mb-4">
             <div>
-                <h2 className="text-2xl font-bold text-white">Metal Slugger</h2>
-                <p className="text-slate-400">¡Un arcade de acción y disparos!</p>
+                <h2 className="text-2xl font-bold text-foreground">Metal Slugger</h2>
+                <p className="text-muted-foreground">¡Un arcade de acción y disparos!</p>
             </div>
             <Button variant="outline" onClick={buyLife}><ShoppingCart className="w-4 h-4 mr-2" /> Comprar Vida (20 pts)</Button>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="bg-slate-700/50 p-3 rounded-lg"><p className="text-sm text-slate-400">Puntuación</p><p className="text-2xl font-bold text-white">{score}</p></div>
-            <div className="bg-slate-700/50 p-3 rounded-lg"><p className="text-sm text-slate-400">Vidas</p><p className="text-2xl font-bold text-red-400">{lives}</p></div>
-            <div className="bg-slate-700/50 p-3 rounded-lg"><p className="text-sm text-slate-400">Munición</p><p className="text-2xl font-bold text-yellow-400">{ammo.current}</p></div>
-            <div className="bg-slate-700/50 p-3 rounded-lg"><p className="text-sm text-slate-400">High Score</p><p className="text-2xl font-bold text-cyan-400">{highScore}</p></div>
+            <div className="bg-muted/50 p-3 rounded-lg border border-border"><p className="text-sm text-muted-foreground">Puntuación</p><p className="text-2xl font-bold text-foreground">{score}</p></div>
+            <div className="bg-muted/50 p-3 rounded-lg border border-border"><p className="text-sm text-muted-foreground">Vidas</p><p className="text-2xl font-bold text-red-400">{lives}</p></div>
+            <div className="bg-muted/50 p-3 rounded-lg border border-border"><p className="text-sm text-muted-foreground">Munición</p><p className="text-2xl font-bold text-yellow-400">{ammo.current}</p></div>
+            <div className="bg-muted/50 p-3 rounded-lg border border-border"><p className="text-sm text-muted-foreground">High Score</p><p className="text-2xl font-bold text-cyan-400">{highScore}</p></div>
         </div>
 
-        <div className="relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden border-2 border-slate-600">
+        <div className="relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden border-2 border-input">
           <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full" />
           {gameState !== 'playing' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10 text-center p-4">
               {gameState === 'menu' && <>
-                <h3 className="text-4xl font-bold text-white mb-4">Metal Slugger</h3>
-                <p className="text-slate-300 mb-2">Flechas para mover, Espacio para disparar.</p>
-                <p className="text-slate-300 mb-6">¡Sobrevive a las hordas de enemigos!</p>
+                <h3 className="text-4xl font-bold text-foreground mb-4">Metal Slugger</h3>
+                <p className="text-muted-foreground mb-2">Flechas para mover, Espacio para disparar.</p>
+                <p className="text-muted-foreground mb-6">¡Sobrevive a las hordas de enemigos!</p>
                 <Button size="lg" onClick={startGame}><Play className="mr-2 h-5 w-5"/>Iniciar Juego</Button>
               </>}
               {gameState === 'paused' && <>
-                <h3 className="text-4xl font-bold text-white mb-6">Pausa</h3>
+                <h3 className="text-4xl font-bold text-foreground mb-6">Pausa</h3>
                 <div className="flex gap-4">
                     <Button size="lg" onClick={() => setGameState('playing')}><Play className="mr-2 h-5 w-5"/>Continuar</Button>
                     <Button size="lg" variant="secondary" onClick={() => setGameState('menu')}>Menú Principal</Button>
@@ -373,7 +373,7 @@ const MetalSlugger = ({ currentUser, onPointsUpdate }) => {
               </>}
               {gameState === 'gameOver' && <>
                 <h3 className="text-4xl font-bold text-red-500 mb-4">¡Juego Terminado!</h3>
-                <p className="text-xl text-slate-300 mb-6">Puntuación final: {score}</p>
+                <p className="text-xl text-muted-foreground mb-6">Puntuación final: {score}</p>
                 <div className="flex gap-4">
                     <Button size="lg" onClick={startGame}><RotateCcw className="mr-2 h-5 w-5"/>Jugar de Nuevo</Button>
                     <Button size="lg" variant="secondary" onClick={() => setGameState('menu')}>Menú Principal</Button>

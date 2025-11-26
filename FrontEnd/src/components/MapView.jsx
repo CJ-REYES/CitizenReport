@@ -72,7 +72,7 @@ const MapView = ({ currentUser, lastUpdate }) => {
       case 'repaired':
         return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
       default:
-        return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+        return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -86,15 +86,15 @@ const MapView = ({ currentUser, lastUpdate }) => {
       className="space-y-4"
     >
       {/* Filters */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
+      <div className="bg-background backdrop-blur-sm rounded-xl p-4 border border-border">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-5 h-5 text-teal-400" />
-          <h2 className="text-lg font-semibold text-white">Filtros</h2>
+          <h2 className="text-lg font-semibold text-foreground">Filtros</h2>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm text-slate-400 mb-2 block">Estado</label>
+            <label className="text-sm text-muted-foreground mb-2 block">Estado</label>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
               <Button size="sm" variant={statusFilter === 'pending' ? 'default' : 'outline'} onClick={() => setStatusFilter('pending')}>Pendiente</Button>
@@ -104,7 +104,7 @@ const MapView = ({ currentUser, lastUpdate }) => {
           </div>
 
           <div>
-            <label className="text-sm text-slate-400 mb-2 block">Tipo</label>
+            <label className="text-sm text-muted-foreground mb-2 block">Tipo</label>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant={typeFilter === 'all' ? 'default' : 'outline'} onClick={() => setTypeFilter('all')}>Todos</Button>
               {reportTypes.map(type => (
@@ -116,7 +116,7 @@ const MapView = ({ currentUser, lastUpdate }) => {
       </div>
 
       {/* Map */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-slate-700">
+      <div className="bg-background backdrop-blur-sm rounded-xl overflow-hidden border border-border">
         <div className="h-[600px] relative z-0">
           <MapContainer
             center={candelariaCenter}
@@ -147,11 +147,11 @@ const MapView = ({ currentUser, lastUpdate }) => {
                       {getStatusIcon(report.status)}
                       <span className="capitalize">{report.status}</span>
                     </div>
-                    {report.title && <p className="font-bold text-base mb-1">{report.title}</p>}
-                    <p className="font-semibold text-sm mb-1">{report.type}</p>
-                    <p className="text-xs text-slate-600 mb-2">{report.description}</p>
-                    <p className="text-xs text-slate-500">Por: {report.username}</p>
-                    <p className="text-xs text-slate-500">{new Date(report.createdAt).toLocaleDateString()}</p>
+                    {report.title && <p className="font-bold text-base mb-1 text-foreground">{report.title}</p>}
+                    <p className="font-semibold text-sm mb-1 text-foreground">{report.type}</p>
+                    <p className="text-xs text-muted-foreground mb-2">{report.description}</p>
+                    <p className="text-xs text-muted-foreground">Por: {report.username}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(report.createdAt).toLocaleDateString()}</p>
                   </div>
                 </Popup>
               </Marker>
@@ -162,9 +162,9 @@ const MapView = ({ currentUser, lastUpdate }) => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
-          <p className="text-slate-400 text-sm">Total Reportes</p>
-          <p className="text-2xl font-bold text-white">{reports.length}</p>
+        <div className="bg-background backdrop-blur-sm rounded-xl p-4 border border-border">
+          <p className="text-muted-foreground text-sm">Total Reportes</p>
+          <p className="text-2xl font-bold text-foreground">{reports.length}</p>
         </div>
         <div className="bg-yellow-500/10 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/30">
           <p className="text-yellow-300 text-sm">Pendientes</p>

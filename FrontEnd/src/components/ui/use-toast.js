@@ -97,7 +97,7 @@ export function useToast() {
   }, [state.toasts])
 
   return {
-    toast,
+    toast, // Esto permite usar toast() directamente desde el hook
     toasts: state.toasts,
   }
 }

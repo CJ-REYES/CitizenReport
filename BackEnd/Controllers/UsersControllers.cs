@@ -28,58 +28,10 @@ namespace BackEnd.Controllers
             _rankService = rankService;
         }
 
-        // --------------------------
-        // ACTUALIZAR FOTO DE PERFIL
-        // --------------------------
-        [HttpPut("ActualizarFoto/{idUsuario}")]
-        public async Task<IActionResult> ActualizarFoto(int idUsuario, IFormFile nuevaFoto)
-        {
-            if (nuevaFoto == null || nuevaFoto.Length == 0)
-                return BadRequest("Debes enviar una imagen válida.");
-
-            var user = await _context.Users.FindAsync(idUsuario);
-
-            if (user == null)
-                return NotFound("Usuario no encontrado.");
-
-            string carpetaImagenes = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
-
-            if (!Directory.Exists(carpetaImagenes))
-                Directory.CreateDirectory(carpetaImagenes);
-
-            if (!string.IsNullOrEmpty(user.FotoPerfilURL))
-            {
-                string rutaVieja = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.FotoPerfilURL);
-
-                if (System.IO.File.Exists(rutaVieja))
-                    System.IO.File.Delete(rutaVieja);
-            }
-
-            string nombreArchivo = $"{Guid.NewGuid()}{Path.GetExtension(nuevaFoto.FileName)}";
-            string rutaGuardar = Path.Combine(carpetaImagenes, nombreArchivo);
-
-            using (var stream = new FileStream(rutaGuardar, FileMode.Create))
-                await nuevaFoto.CopyToAsync(stream);
-
-            user.FotoPerfilURL = Path.Combine("Images", nombreArchivo);
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new
-            {
-                mensaje = "Foto actualizada correctamente.",
-                ruta = user.FotoPerfilURL
-            });
-        }
-
-        // --------------------------
-        // REGISTRO
-        // --------------------------
         [HttpPost("register")]
         [AllowAnonymous]
         public async Task<IActionResult> Register(UserRegisterDTO dto)
         {
-<<<<<<< Updated upstream
             try
             {
                 // Valida si el email ya está registrado
@@ -89,65 +41,6 @@ namespace BackEnd.Controllers
                 {
                     return BadRequest("El correo ya está registrado.");
                 }
-=======
-            if (_context.Users.Any(u => u.Email == dto.Email))
-                return BadRequest("El correo ya está registrado.");
-
-            var user = new User
-            {
-                Nombre = dto.Nombre,
-                Email = dto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Rol = "Usuario",
-                FotoPerfilURL = "",
-                Puntos = 0
-            };
-
-            _context.Users.Add(user);
-            _context.SaveChanges();
-
-            return Ok("Usuario registrado correctamente.");
-        }
-
-        // --------------------------
-        // OBTENER USUARIO POR ID
-        // --------------------------
-        [HttpGet("{id}")]
-        public IActionResult GetUserById(int id)
-        {
-            var user = _context.Users.Find(id);
-            if (user == null)
-                return NotFound("Usuario no encontrado.");
-
-            return Ok(new
-            {
-                user.Id,
-                user.Nombre,
-                user.Email,
-                user.Rol,
-                user.FotoPerfilURL,
-                user.Puntos
-            });
-        }
-
-        // --------------------------
-        // OBTENER TODOS LOS USUARIOS
-        // --------------------------
-        [HttpGet]
-        public IActionResult GetAllUsers()
-        {
-            var users = _context.Users
-                .Select(u => new
-                {
-                    u.Id,
-                    u.Nombre,
-                    u.Email,
-                    u.Rol,
-                    u.FotoPerfilURL,
-                    u.Puntos
-                })
-                .ToList();
->>>>>>> Stashed changes
 
                 // Crea usuario con contraseña encriptada
                 var user = new User
@@ -371,12 +264,6 @@ public async Task<IActionResult> GetUserMinigameStats(int id)
             }
         }
 
-<<<<<<< Updated upstream
-=======
-        // --------------------------
-        // EDITAR USUARIO
-        // --------------------------
->>>>>>> Stashed changes
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, UserUpdateDTO dto)
         {
@@ -387,16 +274,11 @@ public async Task<IActionResult> GetUserMinigameStats(int id)
                 if (user == null)
                     return NotFound("Usuario no encontrado.");
 
-<<<<<<< Updated upstream
                 // Valida el email nuevo no exista
                 var emailExists = await _context.Users.AnyAsync(u => u.Email == dto.Email && u.Id != id);
 
                 if (emailExists)
                     return BadRequest("El correo ya está usado por otro usuario.");
-=======
-            if (_context.Users.Any(u => u.Email == dto.Email && u.Id != id))
-                return BadRequest("El correo ya está usado por otro usuario.");
->>>>>>> Stashed changes
 
                 user.Nombre = dto.Nombre;
                 user.Email = dto.Email;
@@ -411,12 +293,6 @@ public async Task<IActionResult> GetUserMinigameStats(int id)
             }
         }
 
-<<<<<<< Updated upstream
-=======
-        // --------------------------
-        // ELIMINAR USUARIO
-        // --------------------------
->>>>>>> Stashed changes
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
@@ -438,11 +314,7 @@ public async Task<IActionResult> GetUserMinigameStats(int id)
             }
         }
 
-        // --------------------------
-        // LOGIN
-        // --------------------------
         [HttpPost("login")]
-<<<<<<< Updated upstream
 [AllowAnonymous]
 public async Task<IActionResult> Login(UserLoginDTO dto)
 {
@@ -486,37 +358,11 @@ public async Task<IActionResult> Login(UserLoginDTO dto)
         return StatusCode(500, $"Error interno del servidor: {ex.Message}");
     }
 }
-=======
-        [AllowAnonymous]
-        public IActionResult Login(UserLoginDTO dto)
-        {
-            var user = _context.Users.SingleOrDefault(u => u.Email == dto.Email);
-
-            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                return Unauthorized("CREDENCIALES INVALIDAS");
-
-            var token = GenerateJwtToken(user);
-
-            return Ok(new
-            {
-                IdUser = user.Id,
-                Email = user.Email,
-                NombreUser = user.Nombre,
-                TokenJWT = token,
-                Puntos = user.Puntos
-            });
-        }
-
->>>>>>> Stashed changes
         private string GenerateJwtToken(User user)
         {
             var secretKey = _configuration["Jwt:SecretKey"];
             var expireHours = int.Parse(_configuration["Jwt:ExpireHours"] ?? "2");
-<<<<<<< Updated upstream
             
-=======
-
->>>>>>> Stashed changes
             var key = Encoding.UTF8.GetBytes(secretKey);
 
             var claims = new[]
@@ -526,12 +372,8 @@ public async Task<IActionResult> Login(UserLoginDTO dto)
                 new Claim(ClaimTypes.Name, user.Nombre),
                 new Claim(ClaimTypes.Role, user.Rol),
                 new Claim("PhotoUrl", user.FotoPerfilURL ?? ""),
-<<<<<<< Updated upstream
                 new Claim("Puntos", user.Puntos.ToString()),
                 new Claim("Rango", user.Rango ?? "Ciudadano Novato")
-=======
-                new Claim("Puntos", user.Puntos.ToString())
->>>>>>> Stashed changes
             };
 
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -545,7 +387,6 @@ public async Task<IActionResult> Login(UserLoginDTO dto)
 
             var tokenHandler = new JwtSecurityTokenHandler();
             var token = tokenHandler.CreateToken(tokenDescriptor);
-
             return tokenHandler.WriteToken(token);
         }
     }

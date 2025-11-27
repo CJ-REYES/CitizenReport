@@ -134,7 +134,43 @@ public async Task<IActionResult> StartGame(int userId)
                 Historial = history 
             });
         }
+[HttpGet("user-stats/{userId}")]
+public async Task<IActionResult> GetUserGameStats(int userId)
+{
+    try
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return NotFound("Usuario no encontrado.");
 
+        // Procesar recarga de vidas diarias
+        _minigameService.ProcesarVidasDiarias(user);
+        await _context.SaveChangesAsync();
+
+        // Obtener estadísticas del minijuego
+        var historial = await _context.MinigameMatches
+            .Where(m => m.UserId == userId)
+            .OrderByDescending(m => m.Score)
+            .Select(m => new MatchHistoryDTO(m.Score, m.PlayedAt))
+            .ToListAsync();
+
+        var mejorScore = historial.Any() ? historial.Max(h => h.Score) : 0;
+        var partidasHoy = historial.Count(h => h.PlayedAt.Date == DateTime.UtcNow.Date);
+
+        return Ok(new
+        {
+            Vidas = user.Vidas,
+            Monedas = user.Monedas,
+            MejorScore = mejorScore,
+            TotalPartidas = historial.Count,
+            PartidasHoy = partidasHoy,
+            Historial = historial.Take(3) // Top 3 partidas
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new { Message = "Error al obtener estadísticas", Error = ex.Message });
+    }
+}
         [HttpGet("ranking")]
         public async Task<IActionResult> GetGlobalRanking()
         {

@@ -161,7 +161,74 @@ public async Task<IActionResult> GetAllUsers()
                 return StatusCode(500, $"Error interno del servidor: {ex.Message}");
             }
         }
+// En UsersControllers.cs - Agregar estos nuevos endpoints
 
+[HttpGet("stats/{id}")]
+public async Task<IActionResult> GetUserStats(int id)
+{
+    try
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound("Usuario no encontrado.");
+
+        // Obtener el mejor score del usuario desde MinigameMatches
+        var mejorScore = await _context.MinigameMatches
+            .Where(m => m.UserId == id)
+            .Select(m => m.Score)
+            .DefaultIfEmpty(0)
+            .MaxAsync();
+
+        return Ok(new
+        {
+            Id = user.Id,
+            Nombre = user.Nombre,
+            Vidas = user.Vidas,
+            Monedas = user.Monedas,
+            MejorScore = mejorScore,
+            UltimaRecarga = user.UltimaRecargaVidas
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+    }
+}
+
+[HttpGet("minigame-stats/{id}")]
+public async Task<IActionResult> GetUserMinigameStats(int id)
+{
+    try
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound("Usuario no encontrado.");
+
+        // Obtener estadísticas del minijuego
+        var partidas = await _context.MinigameMatches
+            .Where(m => m.UserId == id)
+            .OrderByDescending(m => m.Score)
+            .ToListAsync();
+
+        var mejorScore = partidas.Any() ? partidas.Max(m => m.Score) : 0;
+        var totalPartidas = partidas.Count;
+        var promedioScore = partidas.Any() ? (int)partidas.Average(m => m.Score) : 0;
+
+        return Ok(new
+        {
+            Vidas = user.Vidas,
+            Monedas = user.Monedas,
+            MejorScore = mejorScore,
+            TotalPartidas = totalPartidas,
+            PromedioScore = promedioScore,
+            UltimasPartidas = partidas.Take(5).Select(p => new { p.Score, p.PlayedAt })
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+    }
+}
         [HttpGet("top")]
         public async Task<IActionResult> GetTopUsers()
         {

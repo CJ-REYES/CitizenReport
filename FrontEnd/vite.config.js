@@ -241,6 +241,15 @@ export default defineConfig({
 		addTransformIndexHtml
 	],
 	server: {
+		proxy: {
+      // Redirige cualquier llamada que comience con '/minigame' a tu backend
+      '/minigame': {
+        target: 'https://localhost:5001', // O 'http://localhost:5001'
+        changeOrigin: true,
+        secure: false, // Importante si usas HTTPS con certificado auto-generado
+        rewrite: (path) => path.replace(/^\/minigame/, '/minigame'), // Mantiene el prefijo /minigame
+      },
+    },
 		cors: true,
 		headers: {
 			'Cross-Origin-Embedder-Policy': 'credentialless',

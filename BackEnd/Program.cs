@@ -72,6 +72,7 @@ builder.Services.AddControllers();
 // Registrar el servicio de archivos
 builder.Services.AddScoped<ArchivoService>();
 builder.Services.AddScoped<IUserRankService, UserRankService>();
+builder.Services.AddScoped<IMinigameService, MinigameService>();
 
 // --- 3. CONFIGURACIÓN DE JWT AUTENTICACIÓN Y AUTORIZACIÓN ---
 var jwtSettings = builder.Configuration.GetSection("Jwt");

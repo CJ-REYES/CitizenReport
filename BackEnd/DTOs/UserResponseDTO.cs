@@ -11,5 +11,9 @@ namespace BackEnd.DTOs
         public string Rango { get; set; }
         public string RankColor { get; set; }
         public string RankIcon { get; set; }
+        
+        // --- AGREGADO: DATOS DEL MINIJUEGO ---
+        public int Monedas { get; set; } // <--- NUEVA PROPIEDAD
+        public int Vidas { get; set; }   // <--- NUEVA PROPIEDAD
     }
 }

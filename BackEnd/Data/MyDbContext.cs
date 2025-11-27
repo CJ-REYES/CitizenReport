@@ -12,6 +12,7 @@ namespace BackEnd.Data
         public DbSet<Reporte> Reportes { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<ReporteValidacion> ReporteValidaciones { get; set; } // NUEVO DbSet
+        public DbSet<MinigameMatch> MinigameMatches { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -56,6 +57,17 @@ namespace BackEnd.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Puntos).HasDefaultValue(0); // Valor por defecto para puntos
+                entity.Property(e => e.Monedas).HasDefaultValue(0);
+                entity.Property(e => e.Vidas).HasDefaultValue(5);
+            });
+            // RELACIÓN USUARIO - MINIJUEGO
+            modelBuilder.Entity<MinigameMatch>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(m => m.User)
+                      .WithMany(u => u.PartidasMinijuego)
+                      .HasForeignKey(m => m.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

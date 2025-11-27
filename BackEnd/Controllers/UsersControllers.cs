@@ -66,60 +66,64 @@ namespace BackEnd.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetUserById(int id)
+public async Task<IActionResult> GetUserById(int id)
+{
+    try
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound("Usuario no encontrado.");
+
+        var rankInfo = _rankService.GetRankInfo(user.Puntos);
+
+        return Ok(new
         {
-            try
-            {
-                var user = await _context.Users.FindAsync(id);
-                if (user == null)
-                    return NotFound("Usuario no encontrado.");
+            user.Id,
+            user.Nombre,
+            user.Email,
+            user.Rol,
+            user.FotoPerfilURL,
+            user.Puntos,
+            user.Rango,
+            RankColor = rankInfo.color,
+            RankIcon = rankInfo.icon,
+            user.Monedas, // <--- AGREGADO
+            user.Vidas    // <--- AGREGADO
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+    }
+}
 
-                var rankInfo = _rankService.GetRankInfo(user.Puntos);
-
-                return Ok(new
-                {
-                    user.Id,
-                    user.Nombre,
-                    user.Email,
-                    user.Rol,
-                    user.FotoPerfilURL,
-                    user.Puntos,
-                    user.Rango,
-                    RankColor = rankInfo.color,
-                    RankIcon = rankInfo.icon
-                });
-            }
-            catch (Exception ex)
+       [HttpGet]
+public async Task<IActionResult> GetAllUsers()
+{
+    try
+    {
+        var users = await _context.Users
+            .Select(u => new
             {
-                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
-            }
-        }
+                u.Id,
+                u.Nombre,
+                u.Email,
+                u.Rol,
+                u.FotoPerfilURL,
+                u.Puntos,
+                u.Rango,
+                u.Monedas, // <--- AGREGADO
+                u.Vidas    // <--- AGREGADO
+            })
+            .ToListAsync();
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllUsers()
-        {
-            try
-            {
-                var users = await _context.Users
-                    .Select(u => new
-                    {
-                        u.Id,
-                        u.Nombre,
-                        u.Email,
-                        u.Rol,
-                        u.FotoPerfilURL,
-                        u.Puntos,
-                        u.Rango
-                    })
-                    .ToListAsync();
-
-                return Ok(users);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
-            }
-        }
+        return Ok(users);
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+    }
+}
 
         [HttpGet("ranking")]
         public async Task<IActionResult> GetRanking()
@@ -244,48 +248,49 @@ namespace BackEnd.Controllers
         }
 
         [HttpPost("login")]
-        [AllowAnonymous]
-        public async Task<IActionResult> Login(UserLoginDTO dto)
+[AllowAnonymous]
+public async Task<IActionResult> Login(UserLoginDTO dto)
+{
+    try
+    {
+        // Buscar usuario por email
+        var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == dto.Email);
+
+        // Verificar credenciales
+        if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
         {
-            try
-            {
-                // Buscar usuario por email
-                var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == dto.Email);
-
-                // Verificar credenciales
-                if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                {
-                    return Unauthorized("CREDENCIALES INVALIDAS");
-                }
-
-                // Actualizar rango antes de generar el token
-                await _rankService.ActualizarRangoAsync(user.Id);
-                
-                // Refrescar el usuario para obtener el rango actualizado
-                user = await _context.Users.SingleOrDefaultAsync(u => u.Id == user.Id);
-                var rankInfo = _rankService.GetRankInfo(user.Puntos);
-
-                // Generar token
-                var token = GenerateJwtToken(user);
-
-                return Ok(new
-                {
-                    IdUser = user.Id,
-                    Email = user.Email,
-                    NombreUser = user.Nombre,
-                    TokenJWT = token,
-                    Puntos = user.Puntos,
-                    Rango = user.Rango,
-                    RankColor = rankInfo.color,
-                    RankIcon = rankInfo.icon
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error interno del servidor: {ex.Message}");
-            }
+            return Unauthorized("CREDENCIALES INVALIDAS");
         }
 
+        // Actualizar rango antes de generar el token
+        await _rankService.ActualizarRangoAsync(user.Id);
+        
+        // Refrescar el usuario para obtener el rango actualizado y los datos del minijuego
+        user = await _context.Users.SingleOrDefaultAsync(u => u.Id == user.Id);
+        var rankInfo = _rankService.GetRankInfo(user.Puntos);
+
+        // Generar token
+        var token = GenerateJwtToken(user);
+
+        return Ok(new
+        {
+            IdUser = user.Id,
+            Email = user.Email,
+            NombreUser = user.Nombre,
+            TokenJWT = token,
+            Puntos = user.Puntos,
+            Rango = user.Rango,
+            RankColor = rankInfo.color,
+            RankIcon = rankInfo.icon,
+            Monedas = user.Monedas, // <--- AGREGADO
+            Vidas = user.Vidas      // <--- AGREGADO
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, $"Error interno del servidor: {ex.Message}");
+    }
+}
         private string GenerateJwtToken(User user)
         {
             var secretKey = _configuration["Jwt:SecretKey"];

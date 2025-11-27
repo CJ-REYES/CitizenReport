@@ -64,6 +64,46 @@ namespace BackEnd.Controllers
                 return StatusCode(500, $"Error interno del servidor: {ex.Message}");
             }
         }
+               [HttpPut("ActualizarFoto/{idUsuario}")]
+        public async Task<IActionResult> ActualizarFoto(int idUsuario, IFormFile nuevaFoto)
+        {
+            if (nuevaFoto == null || nuevaFoto.Length == 0)
+                return BadRequest("Debes enviar una imagen válida.");
+
+            var user = await _context.Users.FindAsync(idUsuario);
+
+            if (user == null)
+                return NotFound("Usuario no encontrado.");
+
+            string carpetaImagenes = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "Images");
+
+            if (!Directory.Exists(carpetaImagenes))
+                Directory.CreateDirectory(carpetaImagenes);
+
+            if (!string.IsNullOrEmpty(user.FotoPerfilURL))
+            {
+                string rutaVieja = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.FotoPerfilURL);
+
+                if (System.IO.File.Exists(rutaVieja))
+                    System.IO.File.Delete(rutaVieja);
+            }
+
+            string nombreArchivo = $"{Guid.NewGuid()}{Path.GetExtension(nuevaFoto.FileName)}";
+            string rutaGuardar = Path.Combine(carpetaImagenes, nombreArchivo);
+
+            using (var stream = new FileStream(rutaGuardar, FileMode.Create))
+                await nuevaFoto.CopyToAsync(stream);
+
+            user.FotoPerfilURL = Path.Combine("Images", nombreArchivo);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                mensaje = "Foto actualizada correctamente.",
+                ruta = user.FotoPerfilURL
+            });
+        }
 
         [HttpGet("{id}")]
 public async Task<IActionResult> GetUserById(int id)

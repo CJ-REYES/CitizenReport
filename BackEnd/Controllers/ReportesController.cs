@@ -358,7 +358,170 @@ namespace BackEnd.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
+// GET: api/reportes/colonia-mas-alumbrado
+[HttpGet("colonia-mas-alumbrado")]
+public async Task<ActionResult<object>> GetColoniaConMasAlumbradoPublico()
+{
+    try
+    {
+        var coloniasAlumbrado = await _context.Reportes
+            .Where(r => r.TipoIncidente == "Alumbrado público" || r.TipoIncidente == "Alumbrado")
+            .Where(r => !string.IsNullOrEmpty(r.Colonia)) // Solo colonias con nombre
+            .GroupBy(r => r.Colonia)
+            .Select(g => new
+            {
+                Colonia = g.Key,
+                TotalReportes = g.Count()
+            })
+            .OrderByDescending(x => x.TotalReportes)
+            .ToListAsync();
 
+        var coloniaMasAlumbrado = coloniasAlumbrado.FirstOrDefault();
+
+        if (coloniaMasAlumbrado == null)
+        {
+            // Verificar si hay reportes de alumbrado pero sin colonia asignada
+            var totalAlumbradoSinColonia = await _context.Reportes
+                .CountAsync(r => (r.TipoIncidente == "Alumbrado público" || r.TipoIncidente == "Alumbrado") 
+                              && string.IsNullOrEmpty(r.Colonia));
+
+            if (totalAlumbradoSinColonia > 0)
+            {
+                return Ok(new
+                {
+                    ColoniaMasAlumbrado = "Colonia no especificada",
+                    TotalReportesAlumbrado = totalAlumbradoSinColonia
+                });
+            }
+
+            return Ok(new
+            {
+                ColoniaMasAlumbrado = "Sin reportes",
+                TotalReportesAlumbrado = 0
+            });
+        }
+
+        return Ok(new
+        {
+            ColoniaMasAlumbrado = coloniaMasAlumbrado.Colonia,
+            TotalReportesAlumbrado = coloniaMasAlumbrado.TotalReportes
+        });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error al obtener la colonia con más alumbrado público");
+        return StatusCode(500, "Error interno del servidor");
+    }
+}
+
+// GET: api/reportes/colonia-mas-baches
+[HttpGet("colonia-mas-baches")]
+public async Task<ActionResult<object>> GetColoniaConMasBaches()
+{
+    try
+    {
+        var coloniasBaches = await _context.Reportes
+            .Where(r => r.TipoIncidente == "Baches")
+            .Where(r => !string.IsNullOrEmpty(r.Colonia)) // Solo colonias con nombre
+            .GroupBy(r => r.Colonia)
+            .Select(g => new
+            {
+                Colonia = g.Key,
+                TotalReportes = g.Count()
+            })
+            .OrderByDescending(x => x.TotalReportes)
+            .ToListAsync();
+
+        var coloniaMasBaches = coloniasBaches.FirstOrDefault();
+
+        if (coloniaMasBaches == null)
+        {
+            // Verificar si hay reportes de baches pero sin colonia asignada
+            var totalBachesSinColonia = await _context.Reportes
+                .CountAsync(r => r.TipoIncidente == "Baches" && string.IsNullOrEmpty(r.Colonia));
+
+            if (totalBachesSinColonia > 0)
+            {
+                return Ok(new
+                {
+                    ColoniaMasBaches = "Colonia no especificada",
+                    TotalReportesBaches = totalBachesSinColonia
+                });
+            }
+
+            return Ok(new
+            {
+                ColoniaMasBaches = "Sin reportes",
+                TotalReportesBaches = 0
+            });
+        }
+
+        return Ok(new
+        {
+            ColoniaMasBaches = coloniaMasBaches.Colonia,
+            TotalReportesBaches = coloniaMasBaches.TotalReportes
+        });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error al obtener la colonia con más baches");
+        return StatusCode(500, "Error interno del servidor");
+    }
+}
+
+// GET: api/reportes/colonia-mas-danos
+[HttpGet("colonia-mas-danos")]
+public async Task<ActionResult<object>> GetColoniaConMasDanos()
+{
+    try
+    {
+        var todasLasColonias = await _context.Reportes
+            .Where(r => !string.IsNullOrEmpty(r.Colonia)) // Solo colonias con nombre
+            .GroupBy(r => r.Colonia)
+            .Select(g => new
+            {
+                Colonia = g.Key,
+                TotalReportes = g.Count()
+            })
+            .OrderByDescending(x => x.TotalReportes)
+            .ToListAsync();
+
+        var coloniaMasDanos = todasLasColonias.FirstOrDefault();
+
+        if (coloniaMasDanos == null)
+        {
+            // Verificar si hay reportes pero sin colonia asignada
+            var totalReportesSinColonia = await _context.Reportes
+                .CountAsync(r => string.IsNullOrEmpty(r.Colonia));
+
+            if (totalReportesSinColonia > 0)
+            {
+                return Ok(new
+                {
+                    ColoniaMasDanos = "Colonia no especificada",
+                    TotalReportes = totalReportesSinColonia
+                });
+            }
+
+            return Ok(new
+            {
+                ColoniaMasDanos = "Sin reportes",
+                TotalReportes = 0
+            });
+        }
+
+        return Ok(new
+        {
+            ColoniaMasDanos = coloniaMasDanos.Colonia,
+            TotalReportes = coloniaMasDanos.TotalReportes
+        });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error al obtener la colonia con más daños");
+        return StatusCode(500, "Error interno del servidor");
+    }
+}
         // GET: api/reportes/cercanos
         [HttpGet("cercanos")]
         public async Task<ActionResult<IEnumerable<object>>> GetReportesCercanos(

@@ -111,6 +111,69 @@ const LeaderboardPage = () => {
         return user.id === currentUserId;
     };
 
+    // Renderizar el podio de manera dinámica para asegurar keys únicas
+    const renderPodium = () => {
+        if (topUsers.length < 3) return null;
+
+        const podiumUsers = [
+            { user: topUsers[1], position: 2, delay: 0.1, order: 'order-2 md:order-1' },
+            { user: topUsers[0], position: 1, delay: 0, order: 'order-1 md:order-2' },
+            { user: topUsers[2], position: 3, delay: 0.2, order: 'order-3' }
+        ];
+
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {podiumUsers.map(({ user, position, delay, order }) => (
+                    <motion.div 
+                        key={`podium-${position}-${user.id}`} // ✅ KEY ÚNICA CON POSICIÓN + ID
+                        initial={{ y: position === 1 ? -20 : 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay }}
+                        className={`bg-card/70 backdrop-blur-sm rounded-2xl p-6 border border-border text-center ${order} ${
+                            position === 1 ? 'bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30 transform scale-105 shadow-xl' : ''
+                        }`}
+                    >
+                        <div className="flex justify-center mb-4">
+                            {position === 1 && <Trophy className="w-10 h-10 text-yellow-400" />}
+                            {position === 2 && <Crown className="w-8 h-8 text-gray-400" />}
+                            {position === 3 && <Award className="w-8 h-8 text-amber-600" />}
+                        </div>
+                        <div className={`mx-auto mb-4 rounded-full flex items-center justify-center text-2xl ${
+                            position === 1 ? 'w-24 h-24 text-3xl' : 'w-20 h-20'
+                        } ${
+                            user.rankColor && user.rankColor.includes('from-') 
+                                ? `bg-gradient-to-br ${user.rankColor}`
+                                : position === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500' : 'bg-muted'
+                        }`}>
+                            {user.rankIcon || (position === 1 ? '👑' : '👤')}
+                        </div>
+                        <h3 className={`font-bold text-foreground mb-1 ${
+                            position === 1 ? 'text-xl' : 'text-lg'
+                        }`}>
+                            {user.nombre}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-2">{user.rango}</p>
+                        <div className={`flex items-center justify-center gap-1 ${
+                            position === 1 ? 'text-yellow-400 gap-2' : 'text-amber-400'
+                        }`}>
+                            <Star className={position === 1 ? "w-5 h-5" : "w-4 h-4"} />
+                            <span className={`font-bold ${
+                                position === 1 ? 'text-2xl' : 'text-xl'
+                            }`}>
+                                {user.puntos}
+                            </span>
+                        </div>
+                        <p className={`mt-1 ${
+                            position === 1 ? 'text-sm' : 'text-xs'
+                        } text-muted-foreground`}>
+                            {position === 1 ? 'puntos totales' : 'puntos'}
+                        </p>
+                    </motion.div>
+                ))}
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="max-w-6xl mx-auto space-y-6">
@@ -156,93 +219,8 @@ const LeaderboardPage = () => {
                 )}
             </div>
 
-            {/* Top 3 Podium */}
-            {topUsers.length >= 3 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    {/* 2nd Place */}
-                    {topUsers[1] && (
-                        <motion.div 
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.1 }}
-                            className="bg-card/70 backdrop-blur-sm rounded-2xl p-6 border border-border text-center order-2 md:order-1"
-                        >
-                            <div className="flex justify-center mb-4">
-                                <Crown className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <div className={`w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-2xl ${
-                                topUsers[1].rankColor && topUsers[1].rankColor.includes('from-') 
-                                    ? `bg-gradient-to-br ${topUsers[1].rankColor}`
-                                    : 'bg-muted'
-                            }`}>
-                                {topUsers[1].rankIcon || '👤'}
-                            </div>
-                            <h3 className="font-bold text-foreground text-lg mb-1">{topUsers[1].nombre}</h3>
-                            <p className="text-sm text-muted-foreground mb-2">{topUsers[1].rango}</p>
-                            <div className="flex items-center justify-center gap-1 text-amber-400">
-                                <Star className="w-4 h-4" />
-                                <span className="font-bold text-xl">{topUsers[1].puntos}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">puntos</p>
-                        </motion.div>
-                    )}
-
-                    {/* 1st Place */}
-                    {topUsers[0] && (
-                        <motion.div 
-                            initial={{ y: -20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 backdrop-blur-sm rounded-2xl p-8 border border-yellow-500/30 text-center order-1 md:order-2 transform scale-105 shadow-xl"
-                        >
-                            <div className="flex justify-center mb-4">
-                                <Trophy className="w-10 h-10 text-yellow-400" />
-                            </div>
-                            <div className={`w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl ${
-                                topUsers[0].rankColor && topUsers[0].rankColor.includes('from-') 
-                                    ? `bg-gradient-to-br ${topUsers[0].rankColor}`
-                                    : 'bg-gradient-to-br from-yellow-400 to-amber-500'
-                            }`}>
-                                {topUsers[0].rankIcon || '👑'}
-                            </div>
-                            <h3 className="font-bold text-foreground text-xl mb-1">{topUsers[0].nombre}</h3>
-                            <p className="text-sm text-muted-foreground mb-3">{topUsers[0].rango}</p>
-                            <div className="flex items-center justify-center gap-2 text-yellow-400">
-                                <Star className="w-5 h-5" />
-                                <span className="font-bold text-2xl">{topUsers[0].puntos}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">puntos totales</p>
-                        </motion.div>
-                    )}
-
-                    {/* 3rd Place */}
-                    {topUsers[2] && (
-                        <motion.div 
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                            className="bg-card/70 backdrop-blur-sm rounded-2xl p-6 border border-border text-center order-3"
-                        >
-                            <div className="flex justify-center mb-4">
-                                <Award className="w-8 h-8 text-amber-600" />
-                            </div>
-                            <div className={`w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-2xl ${
-                                topUsers[2].rankColor && topUsers[2].rankColor.includes('from-') 
-                                    ? `bg-gradient-to-br ${topUsers[2].rankColor}`
-                                    : 'bg-muted'
-                            }`}>
-                                {topUsers[2].rankIcon || '👤'}
-                            </div>
-                            <h3 className="font-bold text-foreground text-lg mb-1">{topUsers[2].nombre}</h3>
-                            <p className="text-sm text-muted-foreground mb-2">{topUsers[2].rango}</p>
-                            <div className="flex items-center justify-center gap-1 text-amber-400">
-                                <Star className="w-4 h-4" />
-                                <span className="font-bold text-xl">{topUsers[2].puntos}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">puntos</p>
-                        </motion.div>
-                    )}
-                </div>
-            )}
+            {/* Top 3 Podium - CORREGIDO: Renderizado dinámico con keys únicas */}
+            {renderPodium()}
 
             {/* Sección de Rankings - Diseño en 2 columnas */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -256,7 +234,7 @@ const LeaderboardPage = () => {
                         <p className="text-sm text-muted-foreground mt-1">Top 10 ciudadanos más activos</p>
                     </div>
 
-                    {/* Table Header - CORREGIDO: Distribución mejorada de columnas */}
+                    {/* Table Header */}
                     <div className="p-4 bg-muted/30 grid grid-cols-12 gap-2 font-semibold text-muted-foreground border-b border-border">
                         <div className="col-span-2 text-center px-2">Posición</div>
                         <div className="col-span-5 px-2">Ciudadano</div>
@@ -279,7 +257,7 @@ const LeaderboardPage = () => {
 
                                 return (
                                     <motion.div 
-                                        key={user.id}
+                                        key={`user-${user.id}-${index}`} // ✅ KEY ÚNICA MEJORADA
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.05 }}
@@ -354,7 +332,7 @@ const LeaderboardPage = () => {
                         <p className="text-sm text-muted-foreground mt-1">Top 10 puntuaciones más altas</p>
                     </div>
 
-                    {/* Table Header - CORREGIDO: Misma distribución que ranking principal */}
+                    {/* Table Header */}
                     <div className="p-4 bg-muted/30 grid grid-cols-12 gap-2 font-semibold text-muted-foreground border-b border-border">
                         <div className="col-span-2 text-center px-2">Posición</div>
                         <div className="col-span-5 px-2">Ciudadano</div>
@@ -376,10 +354,11 @@ const LeaderboardPage = () => {
                                 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
                                 const currentUserId = currentUser.idUser || currentUser.id;
                                 const isCurrentUser = user.userId === currentUserId || user.id === currentUserId;
+                                const userKey = user.userId || user.id || `minigame-${index}`;
 
                                 return (
                                     <motion.div 
-                                        key={user.userId || user.id}
+                                        key={`minigame-${userKey}-${index}`} // ✅ KEY ÚNICA MEJORADA
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.05 }}

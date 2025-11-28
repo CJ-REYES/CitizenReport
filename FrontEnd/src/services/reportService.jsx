@@ -194,3 +194,134 @@ export const getAllReports = async () => {
         throw error;
     }
 };
+/**
+ * Obtiene la colonia con más reportes de alumbrado público
+ */
+export const getColoniaMasAlumbrado = async () => {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error('No se encontró token de autenticación');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/reportes/colonia-mas-alumbrado`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await handleResponse(response);
+
+        if (response.status === 404) {
+            // No hay reportes de alumbrado, retornamos valores por defecto
+            return { 
+                coloniaMasAlumbrado: 'Sin datos', 
+                totalReportesAlumbrado: 0 
+            };
+        }
+
+        if (!response.ok) {
+            const errorMessage = data.mensaje || data.message || data || 'Error al obtener colonia con más alumbrado';
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error en getColoniaMasAlumbrado:", error);
+        // En caso de cualquier error, retornamos valores por defecto
+        return { 
+            coloniaMasAlumbrado: 'Error al cargar', 
+            totalReportesAlumbrado: 0 
+        };
+    }
+};
+
+/**
+ * Obtiene la colonia con más reportes de baches
+ */
+export const getColoniaMasBaches = async () => {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error('No se encontró token de autenticación');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/reportes/colonia-mas-baches`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await handleResponse(response);
+
+        if (response.status === 404) {
+            // No hay reportes de baches, retornamos valores por defecto
+            return { 
+                coloniaMasBaches: 'Sin datos', 
+                totalReportesBaches: 0 
+            };
+        }
+
+        if (!response.ok) {
+            const errorMessage = data.mensaje || data.message || data || 'Error al obtener colonia con más baches';
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error en getColoniaMasBaches:", error);
+        // En caso de cualquier error, retornamos valores por defecto
+        return { 
+            coloniaMasBaches: 'Error al cargar', 
+            totalReportesBaches: 0 
+        };
+    }
+};
+
+/**
+ * Obtiene la colonia con más reportes de daños
+ */
+export const getColoniaMasDanos = async () => {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error('No se encontró token de autenticación');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/reportes/colonia-mas-danos`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await handleResponse(response);
+
+        if (response.status === 404) {
+            // No hay reportes en general, retornamos valores por defecto
+            return { 
+                coloniaMasDanos: 'Sin datos', 
+                totalReportes: 0 
+            };
+        }
+
+        if (!response.ok) {
+            const errorMessage = data.mensaje || data.message || data || 'Error al obtener colonia con más daños';
+            throw new Error(errorMessage);
+        }
+
+        return data;
+    } catch (error) {
+        console.error("Error en getColoniaMasDanos:", error);
+        // En caso de cualquier error, retornamos valores por defecto
+        return { 
+            coloniaMasDanos: 'Error al cargar', 
+            totalReportes: 0 
+        };
+    }
+};

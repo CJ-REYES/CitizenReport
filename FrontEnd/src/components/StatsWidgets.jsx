@@ -1,144 +1,257 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Map, BarChart, Clock, CheckCircle } from 'lucide-react';
-
-// Simulated regions for Candelaria, Campeche
-const regions = [
-    { name: 'Centro', bounds: { minLat: 18.18, maxLat: 18.20, minLng: -91.06, maxLng: -91.04 } },
-    { name: 'San Martín', bounds: { minLat: 18.17, maxLat: 18.19, minLng: -91.04, maxLng: -91.02 } },
-    { name: 'Guadalupe', bounds: { minLat: 18.19, maxLat: 18.21, minLng: -91.08, maxLng: -91.06 } },
-    { name: 'Fátima', bounds: { minLat: 18.16, maxLat: 18.18, minLng: -91.06, maxLng: -91.04 } },
-];
-
-// Helper function to get region from coordinates (adjusted to Candelaria's approximate coords)
-const getRegionFromCoords = (lat, lng) => {
-    for (const region of regions) {
-        if (
-            lat >= region.bounds.minLat &&
-            lat < region.bounds.maxLat &&
-            lng >= region.bounds.minLng &&
-            lng < region.bounds.maxLng
-        ) {
-            return region.name;
-        }
-    }
-    return 'Zona Desconocida';
-};
-
-const calculateReportStats = (allReports) => {
-    // 1. Total Reports
-    const totalReports = allReports.length;
-
-    // 2. Resolved Percentage
-    const resolvedReports = allReports.filter(r => r.status === 'resolved').length;
-    const resolvedPercentage = totalReports === 0 ? 0 : Math.round((resolvedReports / totalReports) * 100);
-
-    // 3. Reports by Type
-    const byType = allReports.reduce((acc, report) => {
-        acc[report.type] = (acc[report.type] || 0) + 1;
-        return acc;
-    }, {});
-
-    // 4. Most Active Zone (simplified by recent reports)
-    const byZone = allReports.reduce((acc, report) => {
-        const zone = getRegionFromCoords(report.location.lat, report.location.lng);
-        acc[zone] = (acc[zone] || 0) + 1;
-        return acc;
-    }, {});
-
-    let mostActiveZone = { name: 'N/A', count: 0 };
-    for (const zone in byZone) {
-        if (byZone[zone] > mostActiveZone.count) {
-            mostActiveZone = { name: zone, count: byZone[zone] };
-        }
-    }
-
-    return { totalReports, resolvedPercentage, byType, mostActiveZone };
-};
+import { Map, BarChart, Clock, CheckCircle, AlertTriangle, Construction, TrafficCone, RefreshCw } from 'lucide-react';
+import { getColoniaMasAlumbrado, getColoniaMasBaches, getColoniaMasDanos } from '../services/reportService';
 
 const StatsWidgets = () => {
-    const [reportStats, setReportStats] = useState({
-        totalReports: 0,
-        resolvedPercentage: 0,
-        byType: {},
-        mostActiveZone: { name: 'N/A', count: 0 },
+    const [stats, setStats] = useState({
+        coloniaAlumbrado: { nombre: 'Cargando...', total: 0 },
+        coloniaBaches: { nombre: 'Cargando...', total: 0 },
+        coloniaDanos: { nombre: 'Cargando...', total: 0 }
     });
+    const [loading, setLoading] = useState(true);
+    const [lastUpdate, setLastUpdate] = useState(new Date());
+    const [refreshing, setRefreshing] = useState(false);
 
+    const fetchStats = async () => {
+        try {
+            setRefreshing(true);
+            
+            // Realizar las tres llamadas en paralelo
+            const [alumbradoData, bachesData, danosData] = await Promise.all([
+                getColoniaMasAlumbrado(),
+                getColoniaMasBaches(),
+                getColoniaMasDanos()
+            ]);
+
+            console.log('Datos recibidos:', { alumbradoData, bachesData, danosData });
+
+            setStats({
+                coloniaAlumbrado: {
+                    nombre: alumbradoData.coloniaMasAlumbrado || 'Sin reportes',
+                    total: alumbradoData.totalReportesAlumbrado || 0
+                },
+                coloniaBaches: {
+                    nombre: bachesData.coloniaMasBaches || 'Sin reportes',
+                    total: bachesData.totalReportesBaches || 0
+                },
+                coloniaDanos: {
+                    nombre: danosData.coloniaMasDanos || 'Sin reportes',
+                    total: danosData.totalReportes || 0
+                }
+            });
+            
+            setLastUpdate(new Date());
+        } catch (err) {
+            console.error('Error fetching stats:', err);
+            // En caso de error, mantener los datos anteriores pero marcar error
+            setStats(prev => ({
+                coloniaAlumbrado: { ...prev.coloniaAlumbrado, nombre: 'Error al cargar' },
+                coloniaBaches: { ...prev.coloniaBaches, nombre: 'Error al cargar' },
+                coloniaDanos: { ...prev.coloniaDanos, nombre: 'Error al cargar' }
+            }));
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    // Efecto para cargar inicialmente y establecer el intervalo
     useEffect(() => {
-        const storedReports = JSON.parse(localStorage.getItem('reports') || '[]');
-        setReportStats(calculateReportStats(storedReports));
+        // Cargar datos inmediatamente
+        fetchStats();
+
+        // Establecer intervalo para actualizar cada 30 segundos
+        const intervalId = setInterval(fetchStats, 30000); // 30 segundos
+
+        // Limpiar intervalo al desmontar el componente
+        return () => clearInterval(intervalId);
     }, []);
 
+    // Función para formatear la hora de última actualización
+    const formatLastUpdate = (date) => {
+        return date.toLocaleTimeString('es-MX', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    };
+
+    if (loading) {
+        return (
+            <motion.div 
+                initial={{ y: 20, opacity: 0 }} 
+                animate={{ y: 0, opacity: 1 }} 
+                transition={{ duration: 0.5 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            >
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-card rounded-xl p-6 border border-border shadow-md">
+                        <div className="animate-pulse">
+                            <div className="h-6 bg-gray-300 rounded w-3/4 mb-4"></div>
+                            <div className="h-8 bg-gray-300 rounded w-1/2 mb-2"></div>
+                            <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+                        </div>
+                    </div>
+                ))}
+            </motion.div>
+        );
+    }
+
     return (
-        <motion.div 
-            initial={{ y: 20, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }} 
-            transition={{ duration: 0.5 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
-            {/* TARJETA 1 */}
+        <div className="space-y-4">
+            {/* Header con información de actualización */}
             <motion.div 
-                whileHover={{ scale: 1.02, y: -5 }} 
-                className="bg-card rounded-xl p-6 border border-border shadow-md"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex justify-between items-center px-2"
             >
-                <h3 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2">
-                    <Map className="w-5 h-5 text-primary" />
-                    Reportes Totales
-                </h3>
-
-                <p className="text-5xl font-extrabold text-primary mb-2">
-                    {reportStats.totalReports}
-                </p>
-                <div className='flex items-center gap-2 text-muted-foreground'>
-                    <CheckCircle className='w-4 h-4 text-green-500' />
-                    <span className="font-semibold text-lg">{reportStats.resolvedPercentage}% resueltos</span>
+                <div className="text-sm text-muted-foreground">
+                    Actualizado: {formatLastUpdate(lastUpdate)}
                 </div>
+                <button
+                    onClick={fetchStats}
+                    disabled={refreshing}
+                    className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+                >
+                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    {refreshing ? 'Actualizando...' : 'Actualizar ahora'}
+                </button>
             </motion.div>
 
-            {/* TARJETA 2 */}
+            {/* Widgets */}
             <motion.div 
-                whileHover={{ scale: 1.02, y: -5 }} 
-                className="bg-card rounded-xl p-6 border border-border shadow-md"
+                initial={{ y: 20, opacity: 0 }} 
+                animate={{ y: 0, opacity: 1 }} 
+                transition={{ duration: 0.5 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6"
             >
-                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                    <BarChart className="w-5 h-5 text-primary" />
-                    Distribución por Tipo
-                </h3>
-
-                <div className="space-y-3">
-                    {Object.keys(reportStats.byType).length === 0 ? (
-                        <p className="text-muted-foreground">Sin datos</p>
-                    ) : (
-                        Object.entries(reportStats.byType).map(([type, count]) => (
-                            <div key={type} className="flex justify-between items-center text-foreground">
-                                <span>{type}</span>
-                                <span className="font-bold bg-primary/10 text-primary px-2 py-1 rounded">
-                                    {count}
-                                </span>
-                            </div>
-                        ))
+                {/* TARJETA 1: Colonia con más fallas en alumbrado público */}
+                <motion.div 
+                    whileHover={{ scale: 1.02, y: -5 }} 
+                    className="bg-card rounded-xl p-6 border border-border shadow-md text-center relative"
+                >
+                    {refreshing && (
+                        <div className="absolute top-2 right-2">
+                            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+                        </div>
                     )}
-                </div>
+                    
+                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 justify-center">
+                        <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                        Colonia con más Fallas en Alumbrado
+                    </h3>
+
+                    <div className="mb-4">
+                        <p className="text-4xl font-extrabold text-yellow-500">
+                            {stats.coloniaAlumbrado.total}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            reportes de alumbrado
+                        </p>
+                    </div>
+
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className={`text-lg font-semibold ${
+                            stats.coloniaAlumbrado.nombre === 'Sin reportes' || stats.coloniaAlumbrado.nombre === 'Error al cargar'
+                                ? 'text-gray-500'
+                                : stats.coloniaAlumbrado.nombre === 'Colonia no especificada'
+                                ? 'text-orange-600'
+                                : 'text-yellow-700'
+                        }`}>
+                            {stats.coloniaAlumbrado.nombre === 'Colonia no especificada' 
+                                ? 'Reportes sin colonia asignada' 
+                                : stats.coloniaAlumbrado.nombre}
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* TARJETA 2: Colonia con más baches */}
+                <motion.div 
+                    whileHover={{ scale: 1.02, y: -5 }} 
+                    className="bg-card rounded-xl p-6 border border-border shadow-md text-center relative"
+                >
+                    {refreshing && (
+                        <div className="absolute top-2 right-2">
+                            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+                        </div>
+                    )}
+                    
+                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 justify-center">
+                        <Construction className="w-5 h-5 text-orange-500" />
+                        Colonia con más Baches
+                    </h3>
+
+                    <div className="mb-4">
+                        <p className="text-4xl font-extrabold text-orange-500">
+                            {stats.coloniaBaches.total}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            reportes de baches
+                        </p>
+                    </div>
+
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                        <p className={`text-lg font-semibold ${
+                            stats.coloniaBaches.nombre === 'Sin reportes' || stats.coloniaBaches.nombre === 'Error al cargar'
+                                ? 'text-gray-500'
+                                : stats.coloniaBaches.nombre === 'Colonia no especificada'
+                                ? 'text-orange-600'
+                                : 'text-orange-700'
+                        }`}>
+                            {stats.coloniaBaches.nombre === 'Colonia no especificada' 
+                                ? 'Reportes sin colonia asignada' 
+                                : stats.coloniaBaches.nombre}
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* TARJETA 3: Colonia con más daños (reportes en general) */}
+                <motion.div 
+                    whileHover={{ scale: 1.02, y: -5 }} 
+                    className="bg-card rounded-xl p-6 border border-border shadow-md text-center relative"
+                >
+                    {refreshing && (
+                        <div className="absolute top-2 right-2">
+                            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+                        </div>
+                    )}
+                    
+                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 justify-center">
+                        <TrafficCone className="w-5 h-5 text-red-500" />
+                        Colonia con más Daños
+                    </h3>
+
+                    <div className="mb-4">
+                        <p className="text-4xl font-extrabold text-red-500">
+                            {stats.coloniaDanos.total}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            reportes totales
+                        </p>
+                    </div>
+
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className={`text-lg font-semibold ${
+                            stats.coloniaDanos.nombre === 'Sin reportes' || stats.coloniaDanos.nombre === 'Error al cargar'
+                                ? 'text-gray-500'
+                                : stats.coloniaDanos.nombre === 'Colonia no especificada'
+                                ? 'text-orange-600'
+                                : 'text-red-700'
+                        }`}>
+                            {stats.coloniaDanos.nombre === 'Colonia no especificada' 
+                                ? 'Reportes sin colonia asignada' 
+                                : stats.coloniaDanos.nombre}
+                        </p>
+                    </div>
+                </motion.div>
             </motion.div>
 
-            {/* TARJETA 3 */}
-            <motion.div 
-                whileHover={{ scale: 1.02, y: -5 }} 
-                className="bg-card rounded-xl p-6 border border-border shadow-md text-center flex flex-col justify-center"
-            >
-                <h3 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2 justify-center">
-                    <Clock className="w-5 h-5 text-primary" />
-                    Zona más activa (Reportes)
-                </h3>
-
-                <p className="text-3xl font-extrabold text-primary">
-                    {reportStats.mostActiveZone.name}
-                </p>
-                <p className="text-muted-foreground">
-                    {reportStats.mostActiveZone.count} reportes
-                </p>
-            </motion.div>
-        </motion.div>
+            {/* Indicador de actualización automática */}
+            <div className="text-xs text-center text-muted-foreground">
+                Los datos se actualizan automáticamente cada 30 segundos
+            </div>
+        </div>
     );
 };
 

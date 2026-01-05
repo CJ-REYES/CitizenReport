@@ -3,18 +3,16 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Pantallas de autenticación
+// Pantallas
 import SplashScreen from './src/screens/SplashScreen';
 import AuthScreen from './src/screens/AuthScreen';
-
-// Navegación principal
 import AppNavigator from './src/navigation/AppNavigator';
 
 const Stack = createStackNavigator();
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [userToken, setUserToken] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
@@ -27,7 +25,7 @@ export default function App() {
         const userData = await AsyncStorage.getItem('currentUser');
         
         if (token && userData) {
-          setUserToken(token);
+          setIsAuthenticated(true);
           setCurrentUser(JSON.parse(userData));
         }
       } catch (error) {
@@ -40,41 +38,42 @@ export default function App() {
     checkAuth();
   }, []);
 
-  // Mostrar splash mientras carga
+  const handleLoginSuccess = async (userData) => {
+    setIsAuthenticated(true);
+    setCurrentUser(userData);
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('userToken');
+    await AsyncStorage.removeItem('currentUser');
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
   if (isLoading) {
     return <SplashScreen />;
   }
 
-  // Función para actualizar usuario después del login
-  const handleLoginSuccess = async (userData) => {
-    setUserToken('authenticated');
-    setCurrentUser(userData);
-    await AsyncStorage.setItem('currentUser', JSON.stringify(userData));
-  };
-
-  // Función para logout
-  const handleLogout = async () => {
-    setUserToken(null);
-    setCurrentUser(null);
-    await AsyncStorage.removeItem('userToken');
-    await AsyncStorage.removeItem('currentUser');
-  };
-
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={userToken ? "Main" : "Auth"}
         screenOptions={{
           headerShown: false,
+          animationEnabled: true,
         }}
       >
-        {!userToken ? (
+        {!isAuthenticated ? (
           <Stack.Screen name="Auth">
-            {props => <AuthScreen {...props} onLoginSuccess={handleLoginSuccess} />}
+            {(props) => (
+              <AuthScreen 
+                {...props} 
+                onLoginSuccess={handleLoginSuccess} 
+              />
+            )}
           </Stack.Screen>
         ) : (
           <Stack.Screen name="Main">
-            {props => (
+            {(props) => (
               <AppNavigator 
                 {...props} 
                 currentUser={currentUser} 

@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  RefreshControl, 
+  Alert,
+  StatusBar,
+  SafeAreaView
+} from 'react-native';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Componentes adaptados
+// Componentes
 import StatsWidgets from '../components/StatsWidgets';
-import UserProfile from '../components/UserProfile';
+import UserProgress from '../components/UserProgress';
+import TopUsers from '../components/TopUsers';
+import UserRecentReports from '../components/UserRecentReports';
 import ReportsToValidate from '../components/ReportsToValidate';
 
 const DashboardScreen = ({ navigation }) => {
@@ -62,10 +73,7 @@ const DashboardScreen = ({ navigation }) => {
           onPress: async () => {
             await AsyncStorage.removeItem('userToken');
             await AsyncStorage.removeItem('currentUser');
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Auth' }],
-            });
+            navigation.navigate('Auth');
           }
         }
       ]
@@ -82,96 +90,112 @@ const DashboardScreen = ({ navigation }) => {
 
   if (!currentUser) {
     return (
-      <View style={tw`flex-1 items-center justify-center`}>
-        <Text>Cargando...</Text>
+      <View style={tw`flex-1 items-center justify-center bg-gray-50`}>
+        <Text style={tw`text-gray-600`}>Cargando...</Text>
       </View>
     );
   }
 
   return (
-    <View style={tw`flex-1 bg-gray-50`}>
-      {/* Header superior */}
-      <View style={tw`bg-white px-6 pt-12 pb-4 shadow-sm`}>
-        <View style={tw`flex-row justify-between items-center mb-4`}>
-          <View>
-            <Text style={tw`text-2xl font-bold text-gray-900`}>{greeting}</Text>
-            <Text style={tw`text-gray-500`}>
-              {currentUser?.nombre || currentUser?.username || 'Usuario'}
-            </Text>
-          </View>
-          
-          {/* Botones de header */}
-          <View style={tw`flex-row items-center gap-3`}>
-            {/* Botón de notificaciones */}
-            <TouchableOpacity 
-              style={tw`w-10 h-10 bg-gray-100 rounded-full items-center justify-center`}
-              onPress={() => Alert.alert('Notificaciones', 'Funcionalidad en desarrollo')}
-            >
-              <Icon name="bell-outline" size={22} color="#4B5563" />
-            </TouchableOpacity>
-            
-            {/* Botón de logout */}
-            <TouchableOpacity 
-              style={tw`w-10 h-10 bg-red-50 rounded-full items-center justify-center border border-red-200`}
-              onPress={handleLogout}
-            >
-              <Icon name="logout" size={20} color="#EF4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Info de actualización */}
-        <View style={tw`flex-row justify-between items-center`}>
-          <Text style={tw`text-sm text-gray-500`}>
-            Actualizado: {formatLastUpdate(lastUpdate)}
-          </Text>
-          <TouchableOpacity
-            onPress={onRefresh}
-            disabled={refreshing}
-            style={tw`flex-row items-center gap-2`}
-          >
-            <Icon 
-              name="refresh" 
-              size={16} 
-              color={refreshing ? '#9CA3AF' : '#2E7D32'} 
-              style={refreshing ? tw`rotate-180` : null}
-            />
-            <Text style={tw`text-sm ${refreshing ? 'text-gray-400' : 'text-[#2E7D32]'}`}>
-              Actualizar
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Contenido principal */}
+    <SafeAreaView style={tw`flex-1 bg-gray-50`}>
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="#F9FAFB" 
+        translucent={false}
+      />
+      
+      {/* Contenido principal con ScrollView */}
       <ScrollView 
-        style={tw`flex-1 px-6 pt-6`}
+        style={tw`flex-1`}
+        contentContainerStyle={tw`pb-32`}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#2E7D32']}
+            tintColor="#2E7D32"
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={tw`text-2xl font-bold text-gray-900 mb-2`}>
-          Panel de Control
-        </Text>
-        <Text style={tw`text-gray-500 mb-6`}>
-          Resumen de la actividad de la ciudad y tu progreso
-        </Text>
+        {/* Header dentro del ScrollView */}
+        <View style={tw`bg-white px-4 pt-6 pb-4 shadow-sm mb-2`}>
+          <View style={tw`flex-row justify-between items-center mb-3`}>
+            <View style={tw`flex-1`}>
+              <Text style={tw`text-xl font-bold text-gray-900`}>{greeting}</Text>
+              <Text style={tw`text-gray-500 text-sm mt-1`} numberOfLines={1}>
+                {currentUser?.nombre || currentUser?.username || 'Usuario'}
+              </Text>
+            </View>
+            
+            {/* Botones de header */}
+            <View style={tw`flex-row items-center gap-2`}>
+              {/* Botón de notificaciones */}
+              <TouchableOpacity 
+                style={tw`w-10 h-10 bg-gray-100 rounded-full items-center justify-center`}
+                onPress={() => Alert.alert('Notificaciones', 'Funcionalidad en desarrollo')}
+              >
+                <Icon name="bell-outline" size={22} color="#4B5563" />
+              </TouchableOpacity>
+              
+              {/* Botón de cerrar sesión */}
+              <TouchableOpacity 
+                style={tw`w-10 h-10 bg-gray-100 rounded-full items-center justify-center`}
+                onPress={handleLogout}
+              >
+                <Icon name="logout" size={22} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
 
-        {/* Widgets de Estadísticas */}
-        <StatsWidgets />
-
-        {/* Sección: Mi Progreso */}
-        <View style={tw`bg-white border border-gray-200 rounded-xl shadow-lg p-6 mb-6`}>
-          <Text style={tw`text-xl font-bold text-gray-900 mb-4`}>Mi Progreso</Text>
-          <UserProfile currentUser={currentUser} />
+          {/* Info de actualización */}
+          <View style={tw`flex-row justify-between items-center`}>
+            <Text style={tw`text-sm text-gray-500`}>
+              Actualizado: {formatLastUpdate(lastUpdate)}
+            </Text>
+            <TouchableOpacity
+              onPress={onRefresh}
+              disabled={refreshing}
+              style={tw`flex-row items-center gap-1`}
+            >
+              <Icon 
+                name="refresh" 
+                size={16} 
+                color={refreshing ? '#9CA3AF' : '#2E7D32'} 
+              />
+              <Text style={tw`text-sm ${refreshing ? 'text-gray-400' : 'text-[#2E7D32]'}`}>
+                Actualizar
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Sección: Reportes por Validar */}
-        <View style={tw`bg-white border border-gray-200 rounded-xl shadow-lg p-6 mb-20`}>
-          <ReportsToValidate currentUser={currentUser} />
-        </View>
+       {/* Sección: Estadísticas */}
+<View style={tw`px-4 mb-6`}>
+  <StatsWidgets />
+</View>
+
+{/* Sección: Mi Progreso */}
+<View style={tw`px-4 mb-6`}>
+  <UserProgress currentUser={currentUser} />
+</View>
+
+{/* Sección: Top 3 Ciudadanos */}
+<View style={tw`px-4 mb-6`}>
+  <TopUsers />
+</View>
+
+{/* Sección: Mis Reportes Recientes */}
+<View style={tw`px-4 mb-6`}>
+  <UserRecentReports />
+</View>
+
+{/* Sección: Reportes por Validar */}
+<View style={tw`px-4 mb-6`}>
+  <ReportsToValidate currentUser={currentUser} />
+</View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

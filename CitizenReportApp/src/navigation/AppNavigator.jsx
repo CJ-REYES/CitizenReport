@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Alert, Dimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -14,12 +13,12 @@ import ProfileScreen from '../screens/ProfileScreen';
 import AdminScreen from '../screens/AdminScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const { height } = Dimensions.get('window');
 
 // Componente para el botón flotante
 const FloatingButton = ({ onPress }) => (
   <TouchableOpacity
-    style={tw`absolute top-[-25px] w-14 h-14 bg-[#2E7D32] rounded-full items-center justify-center shadow-lg border-2 border-white`}
+    style={tw`absolute -top-7 w-14 h-14 bg-[#2E7D32] rounded-full items-center justify-center shadow-lg border-4 border-white`}
     onPress={onPress}
     activeOpacity={0.8}
   >
@@ -27,119 +26,129 @@ const FloatingButton = ({ onPress }) => (
   </TouchableOpacity>
 );
 
-// Pantallas de navegación
-const DashboardStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="DashboardMain" component={DashboardScreen} />
-  </Stack.Navigator>
+// Pantallas simples (para pruebas)
+const MapScreenComp = () => (
+  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
+    <Text style={tw`text-xl font-bold text-gray-900`}>Mapa</Text>
+    <Text style={tw`text-gray-500`}>En desarrollo</Text>
+  </View>
 );
 
-const MapStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="MapMain" component={MapScreen} />
-  </Stack.Navigator>
+const ArcadeScreenComp = () => (
+  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
+    <Text style={tw`text-xl font-bold text-gray-900`}>Arcade</Text>
+    <Text style={tw`text-gray-500`}>En desarrollo</Text>
+  </View>
 );
 
-const ArcadeStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="ArcadeMain" component={ArcadeScreen} />
-  </Stack.Navigator>
+const LeaderboardScreenComp = () => (
+  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
+    <Text style={tw`text-xl font-bold text-gray-900`}>Ranking</Text>
+    <Text style={tw`text-gray-500`}>En desarrollo</Text>
+  </View>
 );
 
-const LeaderboardStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="LeaderboardMain" component={LeaderboardScreen} />
-  </Stack.Navigator>
+const ProfileScreenComp = () => (
+  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
+    <Text style={tw`text-xl font-bold text-gray-900`}>Perfil</Text>
+    <Text style={tw`text-gray-500`}>En desarrollo</Text>
+  </View>
 );
 
-const ProfileStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-  </Stack.Navigator>
+const AdminScreenComp = () => (
+  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
+    <Text style={tw`text-xl font-bold text-gray-900`}>Admin</Text>
+    <Text style={tw`text-gray-500`}>En desarrollo</Text>
+  </View>
 );
 
-const AdminStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="AdminMain" component={AdminScreen} />
-  </Stack.Navigator>
-);
-
-// Componente personalizado para la barra de pestañas
-const CustomTabBar = ({ state, descriptors, navigation, currentUser, onCreateReport }) => {
+const AppNavigator = ({ currentUser, onLogout }) => {
   const [showReportModal, setShowReportModal] = useState(false);
 
-  const menuItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', focusedIcon: 'view-dashboard' },
-    { key: 'map', label: 'Mapa', icon: 'map-outline', focusedIcon: 'map' },
-    { key: 'arcade', label: 'Arcade', icon: 'gamepad-variant-outline', focusedIcon: 'gamepad-variant' },
-    { key: 'leaderboard', label: 'Ranking', icon: 'trophy-outline', focusedIcon: 'trophy' },
-    { key: 'profile', label: 'Perfil', icon: 'account-outline', focusedIcon: 'account' },
-  ];
-
-  // Agregar Admin si el usuario es admin
-  if (currentUser?.role === 'admin') {
-    menuItems.push({ 
-      key: 'admin', 
-      label: 'Admin', 
-      icon: 'shield-check-outline', 
-      focusedIcon: 'shield-check' 
-    });
-  }
+  const tabBarOptions = {
+    activeTintColor: '#2E7D32',
+    inactiveTintColor: '#9CA3AF',
+    style: {
+      backgroundColor: 'white',
+      borderTopWidth: 1,
+      borderTopColor: '#E5E7EB',
+      height: 60,
+    },
+    labelStyle: {
+      fontSize: 11,
+      marginBottom: 4,
+    },
+  };
 
   return (
     <>
-      <View style={tw`bg-white border-t border-gray-200 h-16 flex-row relative`}>
-        {menuItems.map((item, index) => {
-          // Encontrar la ruta correspondiente
-          const route = state.routes.find(r => r.name.toLowerCase().includes(item.key));
-          if (!route) return null;
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
 
-          const isFocused = state.index === state.routes.indexOf(route);
-
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
+            if (route.name === 'Dashboard') {
+              iconName = focused ? 'view-dashboard' : 'view-dashboard-outline';
+            } else if (route.name === 'Mapa') {
+              iconName = focused ? 'map' : 'map-outline';
+            } else if (route.name === 'Arcade') {
+              iconName = focused ? 'gamepad-variant' : 'gamepad-variant-outline';
+            } else if (route.name === 'Ranking') {
+              iconName = focused ? 'trophy' : 'trophy-outline';
+            } else if (route.name === 'Perfil') {
+              iconName = focused ? 'account' : 'account-outline';
+            } else if (route.name === 'Admin') {
+              iconName = focused ? 'shield-check' : 'shield-check-outline';
             }
-          };
 
-          // Si es el índice 2 (tercera posición), mostrar botón flotante
-          if (index === 2) {
-            return (
-              <View key={item.key} style={tw`flex-1 items-center justify-center relative`}>
-                <FloatingButton onPress={() => setShowReportModal(true)} />
-                <Text style={tw`text-xs text-gray-500 mt-6`}>{item.label}</Text>
-              </View>
-            );
-          }
+            // Si es la tercera pestaña (Arcade), mostrar botón flotante
+            if (route.name === 'Arcade') {
+              return (
+                <View style={tw`items-center justify-center`}>
+                  <FloatingButton onPress={() => setShowReportModal(true)} />
+                  <Icon name={iconName} size={size} color={color} style={tw`mt-7`} />
+                </View>
+              );
+            }
 
-          return (
-            <TouchableOpacity
-              key={item.key}
-              onPress={onPress}
-              style={tw`flex-1 items-center justify-center`}
-              activeOpacity={0.7}
-            >
-              <Icon 
-                name={isFocused ? item.focusedIcon : item.icon} 
-                size={24} 
-                color={isFocused ? '#2E7D32' : '#9CA3AF'} 
-              />
-              <Text style={[
-                tw`text-xs mt-1`,
-                isFocused ? tw`text-[#2E7D32] font-medium` : tw`text-gray-500`
-              ]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          );
+            return <Icon name={iconName} size={size} color={color} />;
+          },
+          ...tabBarOptions,
         })}
-      </View>
+      >
+        <Tab.Screen 
+          name="Dashboard" 
+          component={DashboardScreen} 
+          options={{ title: 'Dashboard' }}
+        />
+        <Tab.Screen 
+          name="Mapa" 
+          component={MapScreenComp} 
+          options={{ title: 'Mapa' }}
+        />
+        <Tab.Screen 
+          name="Arcade" 
+          component={ArcadeScreenComp} 
+          options={{ title: 'Reportar' }}
+        />
+        <Tab.Screen 
+          name="Ranking" 
+          component={LeaderboardScreenComp} 
+          options={{ title: 'Ranking' }}
+        />
+        <Tab.Screen 
+          name="Perfil" 
+          component={ProfileScreenComp} 
+          options={{ title: 'Perfil' }}
+        />
+        {currentUser?.role === 'admin' && (
+          <Tab.Screen 
+            name="Admin" 
+            component={AdminScreenComp} 
+            options={{ title: 'Admin' }}
+          />
+        )}
+      </Tab.Navigator>
 
       {/* Modal para crear reporte */}
       <Modal
@@ -149,7 +158,7 @@ const CustomTabBar = ({ state, descriptors, navigation, currentUser, onCreateRep
         onRequestClose={() => setShowReportModal(false)}
       >
         <View style={tw`flex-1 justify-end bg-black/50`}>
-          <View style={tw`bg-white rounded-t-3xl p-6`}>
+          <View style={[tw`bg-white rounded-t-3xl p-6`, { maxHeight: height * 0.6 }]}>
             <View style={tw`flex-row justify-between items-center mb-6`}>
               <Text style={tw`text-xl font-bold text-gray-900`}>Crear Reporte</Text>
               <TouchableOpacity onPress={() => setShowReportModal(false)}>
@@ -157,7 +166,7 @@ const CustomTabBar = ({ state, descriptors, navigation, currentUser, onCreateRep
               </TouchableOpacity>
             </View>
 
-            <View style={tw`space-y-4`}>
+            <View style={tw`space-y-3`}>
               {[
                 { icon: 'road', label: 'Bache', color: '#F97316' },
                 { icon: 'lightbulb-outline', label: 'Alumbrado', color: '#F59E0B' },
@@ -185,33 +194,6 @@ const CustomTabBar = ({ state, descriptors, navigation, currentUser, onCreateRep
         </View>
       </Modal>
     </>
-  );
-};
-
-// Navegador principal con tabs
-const AppNavigator = ({ currentUser, onLogout }) => {
-  return (
-    <Tab.Navigator
-      tabBar={props => (
-        <CustomTabBar 
-          {...props} 
-          currentUser={currentUser} 
-          onCreateReport={() => {}} 
-        />
-      )}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardStack} />
-      <Tab.Screen name="Map" component={MapStack} />
-      <Tab.Screen name="Arcade" component={ArcadeStack} />
-      <Tab.Screen name="Leaderboard" component={LeaderboardStack} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
-      {currentUser?.role === 'admin' && (
-        <Tab.Screen name="Admin" component={AdminStack} />
-      )}
-    </Tab.Navigator>
   );
 };
 

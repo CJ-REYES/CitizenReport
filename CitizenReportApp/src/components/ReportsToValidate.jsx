@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -7,6 +7,10 @@ const ReportsToValidate = ({ currentUser }) => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState({});
+  const { width } = useWindowDimensions();
+
+  // Determinar si estamos en pantalla pequeña
+  const isSmallScreen = width < 400;
 
   useEffect(() => {
     loadReports();
@@ -68,13 +72,23 @@ const ReportsToValidate = ({ currentUser }) => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return 'Hoy';
+    } else if (diffDays === 1) {
+      return 'Ayer';
+    } else if (diffDays < 7) {
+      return `Hace ${diffDays} días`;
+    } else {
+      return date.toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'short',
+      });
+    }
   };
 
   const getStatusText = (status) => {
@@ -157,7 +171,10 @@ const ReportsToValidate = ({ currentUser }) => {
             >
               {/* Información del reporte */}
               <View style={tw`mb-3`}>
-                <View style={tw`flex-row justify-between items-start mb-2`}>
+                <View style={[
+                  tw`flex-row justify-between items-start mb-2`,
+                  isSmallScreen && tw`flex-col gap-2`
+                ]}>
                   <Text style={tw`font-semibold text-gray-900 text-lg`}>
                     {report.tipoIncidente}
                   </Text>
@@ -174,31 +191,45 @@ const ReportsToValidate = ({ currentUser }) => {
               </View>
 
               {/* Información del usuario */}
-              <View style={tw`flex-row items-center gap-2 mb-4`}>
-                <View style={tw`w-6 h-6 bg-blue-100 rounded-full items-center justify-center`}>
-                  <Icon name="account" size={14} color="#3B82F6" />
+              <View style={[
+                tw`flex-row items-center gap-2 mb-4`,
+                isSmallScreen && tw`flex-col items-start gap-1`
+              ]}>
+                <View style={tw`flex-row items-center gap-2`}>
+                  <View style={tw`w-6 h-6 bg-blue-100 rounded-full items-center justify-center`}>
+                    <Icon name="account" size={14} color="#3B82F6" />
+                  </View>
+                  <Text style={tw`text-sm text-gray-500`}>
+                    Reportado por {report.usuario?.nombre || "Usuario"}
+                  </Text>
                 </View>
-                <Text style={tw`text-sm text-gray-500`}>
-                  Reportado por {report.usuario?.nombre || "Usuario"}
-                </Text>
-                <Text style={tw`text-gray-400`}>•</Text>
+                {!isSmallScreen && <Text style={tw`text-gray-400`}>•</Text>}
                 <Text style={tw`text-sm text-gray-500`}>
                   {formatDate(report.fechaCreacion)}
                 </Text>
               </View>
 
               {/* Botones de validación */}
-              <View style={tw`flex-row justify-between items-center pt-3 border-t border-gray-200`}>
+              <View style={[
+                tw`flex-row justify-between items-center pt-3 border-t border-gray-200`,
+                isSmallScreen && tw`flex-col gap-3`
+              ]}>
                 <View style={tw`flex-row items-center gap-1`}>
                   <Icon name="clock-outline" size={16} color="#6B7280" />
                   <Text style={tw`text-sm text-gray-500`}>Necesita 10 validaciones</Text>
                 </View>
                 
-                <View style={tw`flex-row gap-2`}>
+                <View style={[
+                  tw`flex-row gap-2`,
+                  isSmallScreen && tw`w-full`
+                ]}>
                   <TouchableOpacity
                     onPress={() => handleValidation(report.id, true)}
                     disabled={validating[report.id]}
-                    style={tw`flex-row items-center gap-2 px-4 py-2 bg-green-500 rounded-lg`}
+                    style={[
+                      tw`flex-row items-center justify-center gap-2 px-4 py-2 bg-green-500 rounded-lg`,
+                      isSmallScreen && tw`flex-1`
+                    ]}
                   >
                     {validating[report.id] ? (
                       <View style={tw`w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin`} />
@@ -211,7 +242,10 @@ const ReportsToValidate = ({ currentUser }) => {
                   <TouchableOpacity
                     onPress={() => handleValidation(report.id, false)}
                     disabled={validating[report.id]}
-                    style={tw`flex-row items-center gap-2 px-4 py-2 bg-red-500 rounded-lg`}
+                    style={[
+                      tw`flex-row items-center justify-center gap-2 px-4 py-2 bg-red-500 rounded-lg`,
+                      isSmallScreen && tw`flex-1`
+                    ]}
                   >
                     {validating[report.id] ? (
                       <View style={tw`w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin`} />

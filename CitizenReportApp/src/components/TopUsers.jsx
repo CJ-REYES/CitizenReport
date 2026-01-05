@@ -12,8 +12,8 @@ const TopUsers = () => {
   ];
 
   return (
-    <View style={tw`bg-white rounded-xl p-5 border border-gray-200 shadow-sm`}>
-      <View style={tw`flex-row items-center gap-3 mb-5`}>
+    <View style={tw`bg-white rounded-xl p-6 border border-gray-200 shadow-sm`}>
+      <View style={tw`flex-row items-center gap-3 mb-6`}>
         <View style={tw`w-10 h-10 bg-yellow-100 rounded-full items-center justify-center`}>
           <Icon name="trophy" size={22} color="#F59E0B" />
         </View>
@@ -23,7 +23,7 @@ const TopUsers = () => {
         </View>
       </View>
       
-      <View style={tw`space-y-4`}>
+      <View style={tw`gap-1`}>
         {topUsers.map((user, index) => (
           <View 
             key={index}
@@ -34,7 +34,7 @@ const TopUsers = () => {
               tw`bg-amber-50 border-amber-200`
             ]}
           >
-            <View style={tw`flex-row items-center gap-4 mb-2`}>
+            <View style={tw`flex-row items-center gap-4`}>
               <View style={[
                 tw`w-12 h-12 rounded-full items-center justify-center`,
                 index === 0 ? tw`bg-yellow-500` :
@@ -44,27 +44,27 @@ const TopUsers = () => {
                 <Text style={tw`text-white text-lg font-bold`}>{index + 1}</Text>
               </View>
               <View style={tw`flex-1`}>
-                <Text style={tw`font-bold text-gray-900 text-lg`} numberOfLines={1}>
+                <Text style={tw`font-bold text-gray-900 text-lg mb-1`} numberOfLines={1}>
                   {user.name}
                 </Text>
-                <Text style={tw`text-sm text-gray-500`}>
+                <Text style={tw`text-sm text-gray-500 mb-2`}>
                   {user.points} puntos
                 </Text>
-              </View>
-              <View style={[
-                tw`px-3 py-1 rounded-full`,
-                index === 0 ? tw`bg-yellow-100` :
-                index === 1 ? tw`bg-gray-100` :
-                tw`bg-amber-100`
-              ]}>
-                <Text style={[
-                  tw`text-xs font-medium`,
-                  index === 0 ? tw`text-yellow-800` :
-                  index === 1 ? tw`text-gray-800` :
-                  tw`text-amber-800`
+                <View style={[
+                  tw`px-3 py-1.5 rounded-full self-start`,
+                  index === 0 ? tw`bg-yellow-100` :
+                  index === 1 ? tw`bg-gray-100` :
+                  tw`bg-amber-100`
                 ]}>
-                  {user.rank}
-                </Text>
+                  <Text style={[
+                    tw`text-xs font-medium`,
+                    index === 0 ? tw`text-yellow-800` :
+                    index === 1 ? tw`text-gray-800` :
+                    tw`text-amber-800`
+                  ]}>
+                    {user.rank}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>

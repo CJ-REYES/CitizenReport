@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const TopUsers = () => {
+const TopUsers = ({ darkMode }) => {
   // Datos de ejemplo para Top 3
   const topUsers = [
     { name: 'Ana García', points: 245, rank: 'Ciudadano Héroe' },
@@ -12,14 +12,14 @@ const TopUsers = () => {
   ];
 
   return (
-    <View style={tw`bg-white rounded-xl p-6 border border-gray-200 shadow-sm`}>
+    <View style={tw`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-6 border shadow-sm`}>
       <View style={tw`flex-row items-center gap-3 mb-6`}>
-        <View style={tw`w-10 h-10 bg-yellow-100 rounded-full items-center justify-center`}>
-          <Icon name="trophy" size={22} color="#F59E0B" />
+        <View style={tw`w-10 h-10 ${darkMode ? 'bg-yellow-900' : 'bg-yellow-100'} rounded-full items-center justify-center`}>
+          <Icon name="trophy" size={22} color={darkMode ? "#FBBF24" : "#F59E0B"} />
         </View>
         <View>
-          <Text style={tw`text-xl font-bold text-gray-900`}>Top 3 Ciudadanos</Text>
-          <Text style={tw`text-sm text-gray-500`}>Los ciudadanos más activos</Text>
+          <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Top 3 Ciudadanos</Text>
+          <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Los ciudadanos más activos</Text>
         </View>
       </View>
       
@@ -29,9 +29,9 @@ const TopUsers = () => {
             key={index}
             style={[
               tw`p-4 rounded-xl border`,
-              index === 0 ? tw`bg-yellow-50 border-yellow-200` :
-              index === 1 ? tw`bg-gray-50 border-gray-200` :
-              tw`bg-amber-50 border-amber-200`
+              index === 0 ? tw`${darkMode ? 'bg-yellow-900/30 border-yellow-800' : 'bg-yellow-50 border-yellow-200'}` :
+              index === 1 ? tw`${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}` :
+              tw`${darkMode ? 'bg-amber-900/30 border-amber-800' : 'bg-amber-50 border-amber-200'}`
             ]}
           >
             <View style={tw`flex-row items-center gap-4`}>
@@ -44,23 +44,23 @@ const TopUsers = () => {
                 <Text style={tw`text-white text-lg font-bold`}>{index + 1}</Text>
               </View>
               <View style={tw`flex-1`}>
-                <Text style={tw`font-bold text-gray-900 text-lg mb-1`} numberOfLines={1}>
+                <Text style={tw`font-bold ${darkMode ? 'text-white' : 'text-gray-900'} text-lg mb-1`} numberOfLines={1}>
                   {user.name}
                 </Text>
-                <Text style={tw`text-sm text-gray-500 mb-2`}>
+                <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
                   {user.points} puntos
                 </Text>
                 <View style={[
                   tw`px-3 py-1.5 rounded-full self-start`,
-                  index === 0 ? tw`bg-yellow-100` :
-                  index === 1 ? tw`bg-gray-100` :
-                  tw`bg-amber-100`
+                  index === 0 ? tw`${darkMode ? 'bg-yellow-800' : 'bg-yellow-100'}` :
+                  index === 1 ? tw`${darkMode ? 'bg-gray-600' : 'bg-gray-100'}` :
+                  tw`${darkMode ? 'bg-amber-800' : 'bg-amber-100'}`
                 ]}>
                   <Text style={[
                     tw`text-xs font-medium`,
-                    index === 0 ? tw`text-yellow-800` :
-                    index === 1 ? tw`text-gray-800` :
-                    tw`text-amber-800`
+                    index === 0 ? tw`${darkMode ? 'text-yellow-200' : 'text-yellow-800'}` :
+                    index === 1 ? tw`${darkMode ? 'text-gray-300' : 'text-gray-800'}` :
+                    tw`${darkMode ? 'text-amber-200' : 'text-amber-800'}`
                   ]}>
                     {user.rank}
                   </Text>

@@ -3,7 +3,7 @@ import { View, Text, useWindowDimensions } from 'react-native';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const StatsWidgets = () => {
+const StatsWidgets = ({ darkMode }) => {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 380;
 
@@ -14,16 +14,16 @@ const StatsWidgets = () => {
   };
 
   const StatCard = ({ title, value, colonia, color, icon }) => (
-    <View style={tw`bg-white rounded-xl p-4 mb-3 border border-gray-200 shadow-sm`}>
+    <View style={tw`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-4 mb-3 border shadow-sm`}>
       <View style={tw`flex-row items-center gap-3 mb-3`}>
         <View style={[tw`w-12 h-12 rounded-full items-center justify-center`, { backgroundColor: `${color}20` }]}>
           <Icon name={icon} size={24} color={color} />
         </View>
         <View style={tw`flex-1`}>
-          <Text style={[tw`font-bold text-gray-900`, isSmallScreen ? tw`text-sm` : tw`text-base`]} numberOfLines={2}>
+          <Text style={[tw`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`, isSmallScreen ? tw`text-sm` : tw`text-base`]} numberOfLines={2}>
             {title}
           </Text>
-          <Text style={tw`text-xs text-gray-500 mt-1`}>
+          <Text style={tw`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
             {title.includes('Alumbrado') ? 'reportes de alumbrado' : 
              title.includes('Baches') ? 'reportes de baches' : 'reportes totales'}
           </Text>
@@ -49,10 +49,10 @@ const StatsWidgets = () => {
   return (
     <View style={tw`mb-4`}>
       <View style={tw`mb-4`}>
-        <Text style={tw`text-2xl font-bold text-gray-900 mb-2`}>
+        <Text style={tw`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
           Panel de Control
         </Text>
-        <Text style={tw`text-gray-500`}>
+        <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           Resumen de la actividad de la ciudad y tu progreso
         </Text>
       </View>
@@ -84,7 +84,7 @@ const StatsWidgets = () => {
       {/* Indicador de actualización automática */}
       <View style={tw`flex-row items-center justify-center gap-2 mt-3`}>
         <View style={tw`w-2 h-2 bg-green-500 rounded-full`} />
-        <Text style={tw`text-xs text-gray-400`}>
+        <Text style={tw`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
           Los datos se actualizan automáticamente cada 30 segundos
         </Text>
       </View>

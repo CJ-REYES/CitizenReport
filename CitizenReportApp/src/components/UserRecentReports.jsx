@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const UserRecentReports = () => {
+const UserRecentReports = ({ darkMode }) => {
   // Reportes de ejemplo
   const userReports = [
     { id: 1, type: 'Bache', description: 'Bache grande en avenida principal', status: 'Validado', date: '2024-01-15' },
@@ -13,10 +13,30 @@ const UserRecentReports = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Validado': return { bg: 'bg-green-100', text: 'text-green-700', icon: 'check-circle' };
-      case 'En Proceso': return { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'clock-outline' };
-      case 'Resuelto': return { bg: 'bg-blue-100', text: 'text-blue-700', icon: 'check-all' };
-      default: return { bg: 'bg-gray-100', text: 'text-gray-700', icon: 'alert-circle-outline' };
+      case 'Validado': 
+        return { 
+          bg: darkMode ? 'bg-green-900' : 'bg-green-100', 
+          text: darkMode ? 'text-green-300' : 'text-green-700', 
+          icon: 'check-circle' 
+        };
+      case 'En Proceso': 
+        return { 
+          bg: darkMode ? 'bg-yellow-900' : 'bg-yellow-100', 
+          text: darkMode ? 'text-yellow-300' : 'text-yellow-700', 
+          icon: 'clock-outline' 
+        };
+      case 'Resuelto': 
+        return { 
+          bg: darkMode ? 'bg-blue-900' : 'bg-blue-100', 
+          text: darkMode ? 'text-blue-300' : 'text-blue-700', 
+          icon: 'check-all' 
+        };
+      default: 
+        return { 
+          bg: darkMode ? 'bg-gray-700' : 'bg-gray-100', 
+          text: darkMode ? 'text-gray-300' : 'text-gray-700', 
+          icon: 'alert-circle-outline' 
+        };
     }
   };
 
@@ -30,40 +50,36 @@ const UserRecentReports = () => {
   };
 
   return (
-    // CAMBIO 1: Si quieres más espacio en el borde general, cambia p-6 a p-8 aquí
-    <View style={tw`bg-white rounded-xl p-6 border border-gray-200 shadow-sm`}>
+    <View style={tw`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-6 border shadow-sm`}>
       <View style={tw`flex-row justify-between items-center mb-6`}>
         <View style={tw`flex-row items-center gap-3`}>
-          <View style={tw`w-10 h-10 bg-green-100 rounded-full items-center justify-center`}>
-            <Icon name="clipboard-list" size={22} color="#2E7D32" />
+          <View style={tw`w-10 h-10 ${darkMode ? 'bg-green-900' : 'bg-green-100'} rounded-full items-center justify-center`}>
+            <Icon name="clipboard-list" size={22} color={darkMode ? "#4ADE80" : "#2E7D32"} />
           </View>
           <View>
-            <Text style={tw`text-xl font-bold text-gray-900`}>Mis Reportes Recientes</Text>
-            <Text style={tw`text-sm text-gray-500`}>Últimas contribuciones</Text>
+            <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Mis Reportes Recientes</Text>
+            <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Últimas contribuciones</Text>
           </View>
         </View>
         <View style={tw`flex-row items-center gap-2`}>
           <View style={tw`w-2 h-2 bg-green-500 rounded-full`} />
-         
         </View>
       </View>
       
-      {/* CAMBIO 2: Cambié 'space-y-5' por 'gap-6' para separar más los recuadros entre sí */}
       <View style={tw`gap-1`}>
         {userReports.map((report) => {
           const statusColors = getStatusColor(report.status);
           const typeIcon = getTypeIcon(report.type);
           
           return (
-            /* CAMBIO 3: Aumenté el padding interno de la tarjeta de 'p-4' a 'p-6' */
-            <View key={report.id} style={tw`bg-gray-50 rounded-xl p-6 border border-gray-200`}>
+            <View key={report.id} style={tw`${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'} rounded-xl p-6 border`}>
               <View style={tw`flex-row items-start gap-4`}>
                 <View style={[tw`w-12 h-12 rounded-xl items-center justify-center`, { backgroundColor: `${typeIcon.color}20` }]}>
                   <Icon name={typeIcon.icon} size={22} color={typeIcon.color} />
                 </View>
                 <View style={tw`flex-1`}>
                   <View style={tw`flex-row justify-between items-start mb-3`}>
-                    <Text style={tw`font-bold text-gray-900 text-base`}>{report.type}</Text>
+                    <Text style={tw`font-bold ${darkMode ? 'text-white' : 'text-gray-900'} text-base`}>{report.type}</Text>
                     <View style={[tw`px-3 py-1.5 rounded-full flex-row items-center gap-1.5`, statusColors.bg]}>
                       <Icon name={statusColors.icon} size={14} color={statusColors.text.replace('text-', '#')} />
                       <Text style={[tw`text-xs font-medium`, statusColors.text]}>
@@ -72,13 +88,13 @@ const UserRecentReports = () => {
                     </View>
                   </View>
                   <View style={tw`mb-3`}>
-                    <Text style={tw`text-sm text-gray-600`} numberOfLines={2}>
+                    <Text style={tw`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} numberOfLines={2}>
                       {report.description}
                     </Text>
                   </View>
                   <View style={tw`flex-row items-center gap-1.5`}>
-                    <Icon name="calendar" size={14} color="#9CA3AF" />
-                    <Text style={tw`text-xs text-gray-500`}>
+                    <Icon name="calendar" size={14} color={darkMode ? "#9CA3AF" : "#9CA3AF"} />
+                    <Text style={tw`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       {new Date(report.date).toLocaleDateString('es-ES', {
                         day: 'numeric',
                         month: 'long',
@@ -94,7 +110,7 @@ const UserRecentReports = () => {
       </View>
 
       <TouchableOpacity 
-        style={tw`flex-row items-center justify-center gap-2 mt-8 py-3 border-t border-gray-200`}
+        style={tw`flex-row items-center justify-center gap-2 mt-8 py-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
         onPress={() => console.log('Ver todos los reportes')}
       >
         <Text style={tw`text-base font-medium text-[#2E7D32]`}>Ver todos los reportes</Text>

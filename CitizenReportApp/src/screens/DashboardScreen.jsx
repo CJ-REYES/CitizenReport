@@ -1,3 +1,4 @@
+// DashboardScreen.jsx (solo la sección del header modificada)
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -20,7 +21,7 @@ import TopUsers from '../components/TopUsers';
 import UserRecentReports from '../components/UserRecentReports';
 import ReportsToValidate from '../components/ReportsToValidate';
 
-const DashboardScreen = ({ navigation }) => {
+const DashboardScreen = ({ navigation, darkMode }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [greeting, setGreeting] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -61,25 +62,6 @@ const DashboardScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que deseas salir?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Salir', 
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.removeItem('userToken');
-            await AsyncStorage.removeItem('currentUser');
-            navigation.navigate('Auth');
-          }
-        }
-      ]
-    );
-  };
-
   const formatLastUpdate = (date) => {
     return date.toLocaleTimeString('es-MX', { 
       hour: '2-digit', 
@@ -90,17 +72,17 @@ const DashboardScreen = ({ navigation }) => {
 
   if (!currentUser) {
     return (
-      <View style={tw`flex-1 items-center justify-center bg-gray-50`}>
-        <Text style={tw`text-gray-600`}>Cargando...</Text>
+      <View style={tw`flex-1 items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <Text style={tw`${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Cargando...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-gray-50`}>
+    <SafeAreaView style={tw`flex-1 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor="#F9FAFB" 
+        barStyle={darkMode ? 'light-content' : 'dark-content'} 
+        backgroundColor={darkMode ? '#1F2937' : '#F9FAFB'} 
         translucent={false}
       />
       
@@ -119,38 +101,21 @@ const DashboardScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header dentro del ScrollView */}
-        <View style={tw`bg-white px-4 pt-6 pb-4 shadow-sm mb-2`}>
+        <View style={tw`${darkMode ? 'bg-gray-800' : 'bg-white'} px-4 pt-6 pb-4 shadow-sm mb-2`}>
           <View style={tw`flex-row justify-between items-center mb-3`}>
             <View style={tw`flex-1`}>
-              <Text style={tw`text-xl font-bold text-gray-900`}>{greeting}</Text>
-              <Text style={tw`text-gray-500 text-sm mt-1`} numberOfLines={1}>
+              <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{greeting}</Text>
+              <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} text-sm mt-1`} numberOfLines={1}>
                 {currentUser?.nombre || currentUser?.username || 'Usuario'}
               </Text>
             </View>
             
-            {/* Botones de header */}
-            <View style={tw`flex-row items-center gap-2`}>
-              {/* Botón de notificaciones */}
-              <TouchableOpacity 
-                style={tw`w-10 h-10 bg-gray-100 rounded-full items-center justify-center`}
-                onPress={() => Alert.alert('Notificaciones', 'Funcionalidad en desarrollo')}
-              >
-                <Icon name="bell-outline" size={22} color="#4B5563" />
-              </TouchableOpacity>
-              
-              {/* Botón de cerrar sesión */}
-              <TouchableOpacity 
-                style={tw`w-10 h-10 bg-gray-100 rounded-full items-center justify-center`}
-                onPress={handleLogout}
-              >
-                <Icon name="logout" size={22} color="#EF4444" />
-              </TouchableOpacity>
-            </View>
+            <View style={tw`w-20`}></View>
           </View>
 
           {/* Info de actualización */}
           <View style={tw`flex-row justify-between items-center`}>
-            <Text style={tw`text-sm text-gray-500`}>
+            <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Actualizado: {formatLastUpdate(lastUpdate)}
             </Text>
             <TouchableOpacity
@@ -171,29 +136,29 @@ const DashboardScreen = ({ navigation }) => {
         </View>
 
        {/* Sección: Estadísticas */}
-<View style={tw`px-4 mb-6`}>
-  <StatsWidgets />
-</View>
+        <View style={tw`px-4 mb-6`}>
+          <StatsWidgets darkMode={darkMode} />
+        </View>
 
-{/* Sección: Mi Progreso */}
-<View style={tw`px-4 mb-6`}>
-  <UserProgress currentUser={currentUser} />
-</View>
+        {/* Sección: Mi Progreso */}
+        <View style={tw`px-4 mb-6`}>
+          <UserProgress currentUser={currentUser} darkMode={darkMode} />
+        </View>
 
-{/* Sección: Top 3 Ciudadanos */}
-<View style={tw`px-4 mb-6`}>
-  <TopUsers />
-</View>
+        {/* Sección: Top 3 Ciudadanos */}
+        <View style={tw`px-4 mb-6`}>
+          <TopUsers darkMode={darkMode} />
+        </View>
 
-{/* Sección: Mis Reportes Recientes */}
-<View style={tw`px-4 mb-6`}>
-  <UserRecentReports />
-</View>
+        {/* Sección: Mis Reportes Recientes */}
+        <View style={tw`px-4 mb-6`}>
+          <UserRecentReports darkMode={darkMode} />
+        </View>
 
-{/* Sección: Reportes por Validar */}
-<View style={tw`px-4 mb-6`}>
-  <ReportsToValidate currentUser={currentUser} />
-</View>
+        {/* Sección: Reportes por Validar */}
+        <View style={tw`px-4 mb-6`}>
+          <ReportsToValidate currentUser={currentUser} darkMode={darkMode} />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

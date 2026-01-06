@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, useWindowDimensions, Alert } from 'react-
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const ReportsToValidate = ({ currentUser }) => {
+const ReportsToValidate = ({ currentUser, darkMode }) => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState({});
@@ -106,10 +106,30 @@ const ReportsToValidate = ({ currentUser }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'EnValidacion': return { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-500/30' };
-      case 'Validado': return { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-500/30' };
-      case 'Rechazado': return { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-500/30' };
-      default: return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-500/30' };
+      case 'EnValidacion': 
+        return { 
+          bg: darkMode ? 'bg-yellow-900' : 'bg-yellow-100', 
+          text: darkMode ? 'text-yellow-300' : 'text-yellow-800', 
+          border: darkMode ? 'border-yellow-700' : 'border-yellow-500/30' 
+        };
+      case 'Validado': 
+        return { 
+          bg: darkMode ? 'bg-green-900' : 'bg-green-100', 
+          text: darkMode ? 'text-green-300' : 'text-green-800', 
+          border: darkMode ? 'border-green-700' : 'border-green-500/30' 
+        };
+      case 'Rechazado': 
+        return { 
+          bg: darkMode ? 'bg-red-900' : 'bg-red-100', 
+          text: darkMode ? 'text-red-300' : 'text-red-800', 
+          border: darkMode ? 'border-red-700' : 'border-red-500/30' 
+        };
+      default: 
+        return { 
+          bg: darkMode ? 'bg-gray-700' : 'bg-gray-100', 
+          text: darkMode ? 'text-gray-300' : 'text-gray-800', 
+          border: darkMode ? 'border-gray-600' : 'border-gray-500/30' 
+        };
     }
   };
 
@@ -117,16 +137,16 @@ const ReportsToValidate = ({ currentUser }) => {
     return (
       <View>
         <View style={tw`flex-row justify-between items-center mb-6`}>
-          <Text style={tw`text-xl font-bold text-gray-900`}>Reportes por Validar</Text>
+          <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Reportes por Validar</Text>
           <View style={tw`flex-row items-center gap-2`}>
             <View style={tw`w-2 h-2 bg-green-500 rounded-full animate-pulse`} />
-            <Text style={tw`text-sm text-gray-500`}>Actualización automática</Text>
+            <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Actualización automática</Text>
           </View>
         </View>
         
         <View style={tw`items-center py-10`}>
           <View style={tw`w-8 h-8 border-3 border-[#2E7D32] border-t-transparent rounded-full animate-spin`} />
-          <Text style={tw`text-gray-500 mt-3`}>Cargando reportes por validar...</Text>
+          <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-3`}>Cargando reportes por validar...</Text>
         </View>
       </View>
     );
@@ -136,17 +156,17 @@ const ReportsToValidate = ({ currentUser }) => {
     return (
       <View>
         <View style={tw`flex-row justify-between items-center mb-6`}>
-          <Text style={tw`text-xl font-bold text-gray-900`}>Reportes por Validar</Text>
+          <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Reportes por Validar</Text>
           <View style={tw`flex-row items-center gap-2`}>
             <View style={tw`w-2 h-2 bg-green-500 rounded-full`} />
-            <Text style={tw`text-sm text-gray-500`}>Actualizado</Text>
+            <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Actualizado</Text>
           </View>
         </View>
         
         <View style={tw`items-center py-10`}>
           <Icon name="check-circle" size={52} color="#10B981" />
-          <Text style={tw`text-gray-500 mt-4`}>No hay reportes pendientes por validar</Text>
-          <Text style={tw`text-sm text-gray-400 mt-2 text-center`}>
+          <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-4`}>No hay reportes pendientes por validar</Text>
+          <Text style={tw`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'} mt-2 text-center`}>
             ¡Buen trabajo! Has validado todos los reportes disponibles.
           </Text>
         </View>
@@ -157,10 +177,10 @@ const ReportsToValidate = ({ currentUser }) => {
   return (
     <View>
       <View style={tw`mb-6 gap-1`}>
-        <Text style={tw`text-xl font-bold text-gray-900`}>Reportes por Validar</Text>
+        <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Reportes por Validar</Text>
         <View style={tw`flex-row items-center gap-2`}>
           <View style={tw`w-2 h-2 bg-green-500 rounded-full`} />
-          <Text style={tw`text-sm text-gray-500`}>Actualización automática</Text>
+          <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Actualización automática</Text>
         </View>
       </View>
       
@@ -171,7 +191,7 @@ const ReportsToValidate = ({ currentUser }) => {
           return (
             <View 
               key={report.id} 
-              style={tw`bg-white border border-gray-200 rounded-xl p-5`}
+              style={tw`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border rounded-xl p-5`}
             >
               {/* Información del reporte */}
               <View style={tw`mb-5`}>
@@ -180,7 +200,7 @@ const ReportsToValidate = ({ currentUser }) => {
                   (isSmallScreen || isVerySmallScreen) && tw`flex-col gap-3`
                 ]}>
                   <Text style={[
-                    tw`font-semibold text-gray-900`,
+                    tw`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`,
                     isVerySmallScreen ? tw`text-base` : tw`text-lg`
                   ]}>
                     {report.tipoIncidente}
@@ -193,7 +213,7 @@ const ReportsToValidate = ({ currentUser }) => {
                 </View>
                 
                 <View style={tw`mt-2`}>
-                  <Text style={tw`text-sm text-gray-600`}>
+                  <Text style={tw`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     {report.descripcionDetallada}
                   </Text>
                 </View>
@@ -205,27 +225,27 @@ const ReportsToValidate = ({ currentUser }) => {
                 isVerySmallScreen && tw`flex-col items-start gap-2`
               ]}>
                 <View style={tw`flex-row items-center gap-2`}>
-                  <View style={tw`w-7 h-7 bg-blue-100 rounded-full items-center justify-center`}>
+                  <View style={tw`w-7 h-7 ${darkMode ? 'bg-blue-900' : 'bg-blue-100'} rounded-full items-center justify-center`}>
                     <Icon name="account" size={16} color="#3B82F6" />
                   </View>
-                  <Text style={tw`text-sm text-gray-500`}>
+                  <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Reportado por {report.usuario?.nombre || "Usuario"}
                   </Text>
                 </View>
-                {!isVerySmallScreen && <Text style={tw`text-gray-400`}>•</Text>}
-                <Text style={tw`text-sm text-gray-500`}>
+                {!isVerySmallScreen && <Text style={tw`${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>•</Text>}
+                <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   {formatDate(report.fechaCreacion)}
                 </Text>
               </View>
 
               {/* Botones de validación */}
               <View style={[
-                tw`flex-row justify-between items-center pt-4 border-t border-gray-200`,
+                tw`flex-row justify-between items-center pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`,
                 (isSmallScreen || isVerySmallScreen) && tw`flex-col gap-4`
               ]}>
                 <View style={tw`flex-row items-center gap-2`}>
-                  <Icon name="account-group" size={18} color="#6B7280" />
-                  <Text style={tw`text-sm text-gray-500`}>
+                  <Icon name="account-group" size={18} color={darkMode ? "#9CA3AF" : "#6B7280"} />
+                  <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     {isVerySmallScreen ? '10 validaciones' : 'Necesita 10 validaciones'}
                   </Text>
                 </View>

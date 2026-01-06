@@ -1,6 +1,6 @@
 // navigation/AppNavigator.jsx
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Alert, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Alert, Dimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,7 +16,7 @@ import AdminScreen from '../screens/AdminScreen';
 const Tab = createBottomTabNavigator();
 const { height } = Dimensions.get('window');
 
-const AppNavigator = ({ currentUser }) => {
+const AppNavigator = ({ currentUser, onLogout, darkMode, toggleDarkMode }) => {
   const [showReportModal, setShowReportModal] = useState(false);
 
   // Colores
@@ -46,10 +46,10 @@ const AppNavigator = ({ currentUser }) => {
           tabBarActiveTintColor: PRIMARY_COLOR,
           tabBarInactiveTintColor: INACTIVE_COLOR,
           tabBarStyle: {
-            backgroundColor: 'white',
+            backgroundColor: darkMode ? '#1F2937' : 'white',
             borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            height: 65, // Altura suficiente para los textos
+            borderTopColor: darkMode ? '#374151' : '#E5E7EB',
+            height: 65,
             paddingBottom: 10,
             paddingTop: 8,
           },
@@ -63,19 +63,23 @@ const AppNavigator = ({ currentUser }) => {
       >
         <Tab.Screen 
           name="Dashboard" 
-          component={DashboardScreen}
           options={{
             tabBarIcon: ({ color, size }) => <Icon name="view-dashboard" size={26} color={color} />,
             title: 'Inicio'
           }}
-        />
+        >
+          {(props) => <DashboardScreen {...props} darkMode={darkMode} />}
+        </Tab.Screen>
+        
         <Tab.Screen 
-          name="Mapa" 
-          component={MapScreen}
+          name="Mapa"
           options={{
             tabBarIcon: ({ color, size }) => <Icon name="map" size={26} color={color} />,
           }}
-        />
+        >
+          {(props) => <MapScreen {...props} darkMode={darkMode} />}
+        </Tab.Screen>
+        
         <Tab.Screen 
           name="Arcade" 
           component={ArcadeScreen}
@@ -83,42 +87,52 @@ const AppNavigator = ({ currentUser }) => {
             tabBarIcon: ({ color, size }) => <Icon name="gamepad-variant" size={26} color={color} />,
           }}
         />
+        
         <Tab.Screen 
-          name="Ranking" 
-          component={LeaderboardScreen}
+          name="Ranking"
           options={{
             tabBarIcon: ({ color, size }) => <Icon name="trophy" size={26} color={color} />,
           }}
-        />
+        >
+          {(props) => <LeaderboardScreen {...props} darkMode={darkMode} />}
+        </Tab.Screen>
+        
         <Tab.Screen 
-          name="Perfil" 
-          component={ProfileScreen}
+          name="Perfil"
           options={{
             tabBarIcon: ({ color, size }) => <Icon name="account" size={26} color={color} />,
           }}
-        />
-        {/* Si el admin necesita pestaña extra, iría aquí, pero ocultamos la lógica por ahora */}
+        >
+          {(props) => (
+            <ProfileScreen 
+              {...props} 
+              currentUser={currentUser}
+              onLogout={onLogout}
+              darkMode={darkMode}
+              toggleDarkMode={toggleDarkMode}
+            />
+          )}
+        </Tab.Screen>
       </Tab.Navigator>
 
-      {/* 2. BOTÓN FLOTANTE (FAB) - FUERA DEL NAVIGATOR */}
-      {/* Está posicionado absolutamente "a un costado" (Derecha) */}
+      {/* 2. BOTÓN FLOTANTE (FAB) */}
       <TouchableOpacity
         onPress={() => setShowReportModal(true)}
         activeOpacity={0.8}
         style={[
-          tw`absolute bg-teal-500 items-center justify-center rounded-full shadow-lg`,
+          tw`absolute items-center justify-center rounded-full shadow-lg`,
           {
             backgroundColor: '#10B981',
-            bottom: 90, // Flota encima de la barra de pestañas
-            right: 20,  // A un costado (derecha)
+            bottom: 90,
+            right: 20,
             width: 60,
             height: 60,
-            elevation: 8, // Sombra fuerte en Android para que se vea "bonito"
-            shadowColor: '#10B981', // Sombra verde en iOS
+            elevation: 8,
+            shadowColor: '#10B981',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.3,
             shadowRadius: 4.5,
-            zIndex: 999, // Asegura que esté siempre arriba
+            zIndex: 999,
           }
         ]}
       >
@@ -132,18 +146,24 @@ const AppNavigator = ({ currentUser }) => {
         visible={showReportModal}
         onRequestClose={() => setShowReportModal(false)}
       >
-        <View style={tw`flex-1 justify-end bg-black/60`}>
+        <View style={tw`flex-1 justify-end ${darkMode ? 'bg-black/80' : 'bg-black/60'}`}>
           <TouchableOpacity 
             style={tw`flex-1`} 
             onPress={() => setShowReportModal(false)} 
           />
-          <View style={[tw`bg-white rounded-t-3xl p-6 shadow-2xl`, { paddingBottom: 40 }]}>
+          <View style={[tw`rounded-t-3xl p-6 shadow-2xl`, 
+            darkMode ? tw`bg-gray-800` : tw`bg-white`
+          ]}>
             <View style={tw`items-center mb-2`}>
-              <View style={tw`w-16 h-1 bg-gray-200 rounded-full`} />
+              <View style={tw`w-16 h-1 ${darkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-full`} />
             </View>
             
-            <Text style={tw`text-xl font-bold text-gray-800 mb-1 text-center`}>Crear Nuevo Reporte</Text>
-            <Text style={tw`text-sm text-gray-500 mb-6 text-center`}>Ayuda a mejorar tu ciudad reportando un problema</Text>
+            <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'} mb-1 text-center`}>
+              Crear Nuevo Reporte
+            </Text>
+            <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mb-6 text-center`}>
+              Ayuda a mejorar tu ciudad reportando un problema
+            </Text>
 
             <View style={tw`flex-row flex-wrap justify-between`}>
               {reportCategories.map((item, index) => (
@@ -160,7 +180,9 @@ const AppNavigator = ({ currentUser }) => {
                   >
                     <Icon name={item.icon} size={30} color={item.color} />
                   </View>
-                  <Text style={tw`text-xs font-semibold text-gray-600`}>{item.label}</Text>
+                  <Text style={tw`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {item.label}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>

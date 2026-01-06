@@ -1,3 +1,4 @@
+// App.js - MODIFICADO para pasar todas las props necesarias
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -14,19 +15,25 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuthAndTheme = async () => {
       try {
         // Esperar 2 segundos para mostrar el splash
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         const token = await AsyncStorage.getItem('userToken');
         const userData = await AsyncStorage.getItem('currentUser');
+        const savedDarkMode = await AsyncStorage.getItem('darkMode');
         
         if (token && userData) {
           setIsAuthenticated(true);
           setCurrentUser(JSON.parse(userData));
+        }
+        
+        if (savedDarkMode) {
+          setDarkMode(JSON.parse(savedDarkMode));
         }
       } catch (error) {
         console.error('Error checking auth:', error);
@@ -35,7 +42,7 @@ export default function App() {
       }
     };
 
-    checkAuth();
+    checkAuthAndTheme();
   }, []);
 
   const handleLoginSuccess = async (userData) => {
@@ -48,6 +55,11 @@ export default function App() {
     await AsyncStorage.removeItem('currentUser');
     setIsAuthenticated(false);
     setCurrentUser(null);
+  };
+
+  const toggleDarkMode = async (value) => {
+    setDarkMode(value);
+    await AsyncStorage.setItem('darkMode', JSON.stringify(value));
   };
 
   if (isLoading) {
@@ -76,8 +88,10 @@ export default function App() {
             {(props) => (
               <AppNavigator 
                 {...props} 
-                currentUser={currentUser} 
-                onLogout={handleLogout} 
+                currentUser={currentUser}
+                onLogout={handleLogout}
+                darkMode={darkMode}
+                toggleDarkMode={toggleDarkMode}
               />
             )}
           </Stack.Screen>

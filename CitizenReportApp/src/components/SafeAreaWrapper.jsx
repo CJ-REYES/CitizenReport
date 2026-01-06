@@ -4,7 +4,7 @@ import tw from 'twrnc';
 
 const { height, width } = Dimensions.get('window');
 
-const SafeAreaWrapper = ({ children, style }) => {
+const SafeAreaWrapper = ({ children, style, darkMode }) => {
   // Valores seguros para diferentes dispositivos
   const getSafeAreaPadding = () => {
     if (Platform.OS === 'ios') {
@@ -24,12 +24,12 @@ const SafeAreaWrapper = ({ children, style }) => {
   return (
     <View style={[{ flex: 1 }, style]}>
       <StatusBar 
-        barStyle="dark-content" 
-        backgroundColor="#F9FAFB" 
+        barStyle={darkMode ? 'light-content' : 'dark-content'} 
+        backgroundColor={darkMode ? '#1F2937' : '#F9FAFB'} 
         translucent={false}
       />
       <View style={[
-        tw`flex-1`,
+        tw`flex-1 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`,
         { 
           paddingTop: safeAreaPadding.paddingTop,
           paddingBottom: safeAreaPadding.paddingBottom 

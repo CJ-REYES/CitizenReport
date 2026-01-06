@@ -150,7 +150,7 @@ const MOCK_REPORTS = [
   }
 ];
 
-const MapScreen = () => {
+const MapScreen = ({ darkMode }) => {
   const [reports, setReports] = useState(MOCK_REPORTS);
   const [filteredReports, setFilteredReports] = useState(MOCK_REPORTS);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -235,15 +235,35 @@ const MapScreen = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'EnValidacion':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' };
+        return { 
+          bg: darkMode ? 'bg-yellow-900' : 'bg-yellow-100', 
+          text: darkMode ? 'text-yellow-300' : 'text-yellow-800', 
+          border: darkMode ? 'border-yellow-800' : 'border-yellow-200' 
+        };
       case 'Validado':
-        return { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' };
+        return { 
+          bg: darkMode ? 'bg-blue-900' : 'bg-blue-100', 
+          text: darkMode ? 'text-blue-300' : 'text-blue-800', 
+          border: darkMode ? 'border-blue-800' : 'border-blue-200' 
+        };
       case 'Resuelto':
-        return { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' };
+        return { 
+          bg: darkMode ? 'bg-green-900' : 'bg-green-100', 
+          text: darkMode ? 'text-green-300' : 'text-green-800', 
+          border: darkMode ? 'border-green-800' : 'border-green-200' 
+        };
       case 'Rechazado':
-        return { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200' };
+        return { 
+          bg: darkMode ? 'bg-red-900' : 'bg-red-100', 
+          text: darkMode ? 'text-red-300' : 'text-red-800', 
+          border: darkMode ? 'border-red-800' : 'border-red-200' 
+        };
       default:
-        return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-200' };
+        return { 
+          bg: darkMode ? 'bg-gray-700' : 'bg-gray-100', 
+          text: darkMode ? 'text-gray-300' : 'text-gray-800', 
+          border: darkMode ? 'border-gray-600' : 'border-gray-200' 
+        };
     }
   };
 
@@ -372,20 +392,23 @@ const MapScreen = () => {
   };
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-gray-50`}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f3f4f6" />
+    <SafeAreaView style={tw`flex-1 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <StatusBar 
+        barStyle={darkMode ? 'light-content' : 'dark-content'} 
+        backgroundColor={darkMode ? '#1F2937' : '#f3f4f6'} 
+      />
       
       <Animated.View style={[tw`flex-1`, { opacity: fadeAnim }]}>
         <ScrollView style={tw`flex-1`} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={tw`px-4 pt-6 pb-4 bg-white border-b border-gray-200`}>
+          <View style={tw`px-4 pt-6 pb-4 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b`}>
             <View style={tw`flex-row justify-between items-center mb-2`}>
               <View>
-                <Text style={tw`text-2xl font-bold text-gray-900`}>Mapa de Reportes</Text>
-                <Text style={tw`text-gray-500 mt-1`}>Visualiza los problemas reportados en tu ciudad</Text>
+                <Text style={tw`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Mapa de Reportes</Text>
+                <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>Visualiza los problemas reportados en tu ciudad</Text>
               </View>
               <TouchableOpacity 
-                style={tw`w-10 h-10 bg-teal-100 rounded-full items-center justify-center shadow-sm`}
+                style={tw`w-10 h-10 ${darkMode ? 'bg-teal-900' : 'bg-teal-100'} rounded-full items-center justify-center shadow-sm`}
                 onPress={handleCenterMap}
               >
                 <Icon name="crosshairs-gps" size={20} color="#14b8a6" />
@@ -394,15 +417,15 @@ const MapScreen = () => {
           </View>
 
           {/* Filtros */}
-          <View style={tw`px-4 py-4 bg-white border-b border-gray-200`}>
+          <View style={tw`px-4 py-4 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b`}>
             <View style={tw`flex-row items-center mb-3`}>
               <Icon name="filter-variant" size={20} color="#14b8a6" />
-              <Text style={tw`text-lg font-semibold text-gray-800 ml-2`}>Filtros</Text>
+              <Text style={tw`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} ml-2`}>Filtros</Text>
             </View>
             
             {/* Filtro por Estado */}
             <View style={tw`mb-4`}>
-              <Text style={tw`text-sm text-gray-500 mb-2`}>Estado</Text>
+              <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mb-2`}>Estado</Text>
               <ScrollView 
                 horizontal 
                 showsHorizontalScrollIndicator={false} 
@@ -411,48 +434,48 @@ const MapScreen = () => {
               >
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    statusFilter === 'all' ? 'bg-teal-500' : 'bg-gray-100 border border-gray-300'
+                    statusFilter === 'all' ? 'bg-teal-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setStatusFilter('all')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    statusFilter === 'all' ? 'text-white' : 'text-gray-700'
+                    statusFilter === 'all' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Todos
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    statusFilter === 'EnValidacion' ? 'bg-yellow-500' : 'bg-gray-100 border border-gray-300'
+                    statusFilter === 'EnValidacion' ? 'bg-yellow-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setStatusFilter('EnValidacion')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    statusFilter === 'EnValidacion' ? 'text-white' : 'text-gray-700'
+                    statusFilter === 'EnValidacion' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     En Validación
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    statusFilter === 'Validado' ? 'bg-blue-500' : 'bg-gray-100 border border-gray-300'
+                    statusFilter === 'Validado' ? 'bg-blue-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setStatusFilter('Validado')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    statusFilter === 'Validado' ? 'text-white' : 'text-gray-700'
+                    statusFilter === 'Validado' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Validado
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    statusFilter === 'Resuelto' ? 'bg-green-500' : 'bg-gray-100 border border-gray-300'
+                    statusFilter === 'Resuelto' ? 'bg-green-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setStatusFilter('Resuelto')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    statusFilter === 'Resuelto' ? 'text-white' : 'text-gray-700'
+                    statusFilter === 'Resuelto' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Resuelto
                   </Text>
@@ -462,7 +485,7 @@ const MapScreen = () => {
 
             {/* Filtro por Tipo */}
             <View>
-              <Text style={tw`text-sm text-gray-500 mb-2`}>Tipo de Problema</Text>
+              <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mb-2`}>Tipo de Problema</Text>
               <ScrollView 
                 horizontal 
                 showsHorizontalScrollIndicator={false} 
@@ -471,60 +494,60 @@ const MapScreen = () => {
               >
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    typeFilter === 'all' ? 'bg-teal-500' : 'bg-gray-100 border border-gray-300'
+                    typeFilter === 'all' ? 'bg-teal-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setTypeFilter('all')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    typeFilter === 'all' ? 'text-white' : 'text-gray-700'
+                    typeFilter === 'all' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Todos
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    typeFilter === 'Alumbrado' ? 'bg-blue-500' : 'bg-gray-100 border border-gray-300'
+                    typeFilter === 'Alumbrado' ? 'bg-blue-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setTypeFilter('Alumbrado')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    typeFilter === 'Alumbrado' ? 'text-white' : 'text-gray-700'
+                    typeFilter === 'Alumbrado' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Alumbrado
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    typeFilter === 'Bache' ? 'bg-orange-500' : 'bg-gray-100 border border-gray-300'
+                    typeFilter === 'Bache' ? 'bg-orange-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setTypeFilter('Bache')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    typeFilter === 'Bache' ? 'text-white' : 'text-gray-700'
+                    typeFilter === 'Bache' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Bache
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    typeFilter === 'Basura' ? 'bg-green-500' : 'bg-gray-100 border border-gray-300'
+                    typeFilter === 'Basura' ? 'bg-green-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setTypeFilter('Basura')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    typeFilter === 'Basura' ? 'text-white' : 'text-gray-700'
+                    typeFilter === 'Basura' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Basura
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={tw`px-4 py-2 rounded-full mr-2 ${
-                    typeFilter === 'Vandalismo' ? 'bg-purple-500' : 'bg-gray-100 border border-gray-300'
+                    typeFilter === 'Vandalismo' ? 'bg-purple-500' : darkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-100 border border-gray-300'
                   }`}
                   onPress={() => setTypeFilter('Vandalismo')}
                 >
                   <Text style={tw`text-sm font-medium ${
-                    typeFilter === 'Vandalismo' ? 'text-white' : 'text-gray-700'
+                    typeFilter === 'Vandalismo' ? 'text-white' : darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Vandalismo
                   </Text>
@@ -535,20 +558,20 @@ const MapScreen = () => {
 
           {/* Contador de reportes filtrados */}
           <View style={tw`px-4 pt-4 pb-2`}>
-            <Text style={tw`text-sm text-gray-600`}>
-              <Text style={tw`font-semibold text-teal-600`}>{filteredReports.length}</Text> de {reports.length} reportes
+            <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <Text style={tw`font-semibold ${darkMode ? 'text-teal-400' : 'text-teal-600'}`}>{filteredReports.length}</Text> de {reports.length} reportes
               {statusFilter !== 'all' && ` (filtrado por ${getStatusText(statusFilter)})`}
               {typeFilter !== 'all' && ` (${typeFilter})`}
             </Text>
           </View>
 
           {/* Mapa con OpenStreetMap */}
-          <View style={tw`mx-4 my-3 bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm`}>
+          <View style={tw`mx-4 my-3 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl overflow-hidden border shadow-sm`}>
             <View style={tw`h-80 relative`}>
               {loading ? (
                 <View style={tw`flex-1 justify-center items-center`}>
                   <View style={tw`w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin`} />
-                  <Text style={tw`text-gray-500 mt-2`}>Cargando mapa...</Text>
+                  <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-2`}>Cargando mapa...</Text>
                 </View>
               ) : (
                 <MapView
@@ -582,70 +605,70 @@ const MapScreen = () => {
               )}
               
               {/* Atribución de OpenStreetMap */}
-              <View style={tw`absolute bottom-2 left-2 bg-white/95 px-3 py-1.5 rounded-lg border border-gray-300 shadow-sm`}>
-                <Text style={tw`text-xs text-gray-700 font-medium`}>
+              <View style={tw`absolute bottom-2 left-2 ${darkMode ? 'bg-gray-800/95 border-gray-700' : 'bg-white/95 border-gray-300'} px-3 py-1.5 rounded-lg border shadow-sm`}>
+                <Text style={tw`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-medium`}>
                   © OpenStreetMap contributors
                 </Text>
               </View>
               
               {/* Botón de leyenda */}
               <TouchableOpacity 
-                style={tw`absolute top-2 right-2 bg-white/95 px-3 py-1.5 rounded-lg border border-gray-300 shadow-sm flex-row items-center`}
+                style={tw`absolute top-2 right-2 ${darkMode ? 'bg-gray-800/95 border-gray-700' : 'bg-white/95 border-gray-300'} px-3 py-1.5 rounded-lg border shadow-sm flex-row items-center`}
                 onPress={() => {
                   Alert.alert(
                     'Leyenda de Marcadores',
-                    '🟡 En Validación\n🔵 Validado\n🟢 Resuelto\n🔴 Rechazado\n\n🛣️ Bache\n💡 Alumbrado\n🗑️ Basura\n🎨 Vandalismo',
+                    '🟡 En Validación\n🔵 Validado\n🟢 Resuelto\n🔴 Rechazado\n\n🛣️ Bache\n💡 Alumbrado\n🗑️ Basura\n🤡 Vandalismo',
                     [{ text: 'OK' }]
                   );
                 }}
               >
-                <Icon name="information-outline" size={14} color="#6B7280" />
-                <Text style={tw`text-xs text-gray-700 ml-1 font-medium`}>Leyenda</Text>
+                <Icon name="information-outline" size={14} color={darkMode ? "#9CA3AF" : "#6B7280"} />
+                <Text style={tw`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'} ml-1 font-medium`}>Leyenda</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Estadísticas */}
           <View style={tw`px-4 mb-4`}>
-            <Text style={tw`text-lg font-semibold text-gray-800 mb-3`}>Resumen</Text>
+            <Text style={tw`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-800'} mb-3`}>Resumen</Text>
             <View style={tw`flex-row justify-between`}>
               {/* Total Reportes */}
-              <View style={tw`flex-1 bg-white rounded-xl p-4 border border-gray-200 mr-2 shadow-sm items-center`}>
-                <Text style={tw`text-3xl font-bold text-gray-900`}>{stats.total}</Text>
-                <Text style={tw`text-sm text-gray-500 mt-1`}>Reportes</Text>
+              <View style={tw`flex-1 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-4 border mr-2 shadow-sm items-center`}>
+                <Text style={tw`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats.total}</Text>
+                <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>Reportes</Text>
               </View>
               
               {/* En Validación */}
-              <View style={tw`flex-1 bg-yellow-50 rounded-xl p-4 border border-yellow-200 mr-2 shadow-sm items-center`}>
-                <Text style={tw`text-3xl font-bold text-yellow-700`}>{stats.enValidacion}</Text>
-                <Text style={tw`text-sm text-yellow-600 mt-1`}>En Validación</Text>
+              <View style={tw`flex-1 ${darkMode ? 'bg-yellow-900 border-yellow-800' : 'bg-yellow-50 border-yellow-200'} rounded-xl p-4 border mr-2 shadow-sm items-center`}>
+                <Text style={tw`text-3xl font-bold ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>{stats.enValidacion}</Text>
+                <Text style={tw`text-sm ${darkMode ? 'text-yellow-400' : 'text-yellow-600'} mt-1`}>En Validación</Text>
               </View>
               
               {/* Validados */}
-              <View style={tw`flex-1 bg-blue-50 rounded-xl p-4 border border-blue-200 shadow-sm items-center`}>
-                <Text style={tw`text-3xl font-bold text-blue-700`}>{stats.validados}</Text>
-                <Text style={tw`text-sm text-blue-600 mt-1`}>Validados</Text>
+              <View style={tw`flex-1 ${darkMode ? 'bg-blue-900 border-blue-800' : 'bg-blue-50 border-blue-200'} rounded-xl p-4 border shadow-sm items-center`}>
+                <Text style={tw`text-3xl font-bold ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>{stats.validados}</Text>
+                <Text style={tw`text-sm ${darkMode ? 'text-blue-400' : 'text-blue-600'} mt-1`}>Validados</Text>
               </View>
             </View>
           </View>
 
           {/* Lista de Reportes */}
-          <View style={tw`mx-4 mb-8 bg-white rounded-xl border border-gray-200 shadow-sm`}>
-            <View style={tw`p-4 border-b border-gray-200`}>
+          <View style={tw`mx-4 mb-8 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl border shadow-sm`}>
+            <View style={tw`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <View style={tw`flex-row justify-between items-center`}>
                 <View>
-                  <Text style={tw`text-xl font-bold text-gray-900`}>Reportes Recientes</Text>
-                  <Text style={tw`text-sm text-gray-500 mt-1`}>
+                  <Text style={tw`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Reportes Recientes</Text>
+                  <Text style={tw`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
                     {reports.length} reportes en total
                   </Text>
                 </View>
                 {hasMoreReports && (
                   <TouchableOpacity 
-                    style={tw`flex-row items-center bg-teal-50 px-3 py-1.5 rounded-full`}
+                    style={tw`flex-row items-center ${darkMode ? 'bg-teal-900' : 'bg-teal-50'} px-3 py-1.5 rounded-full`}
                     onPress={() => setShowAllReports(!showAllReports)}
                   >
                     <Icon name={showAllReports ? "chevron-up" : "chevron-down"} size={14} color="#14b8a6" />
-                    <Text style={tw`text-teal-700 font-medium ml-1 text-xs`}>
+                    <Text style={tw`${darkMode ? 'text-teal-300' : 'text-teal-700'} font-medium ml-1 text-xs`}>
                       {showAllReports ? 'Ver menos' : 'Ver todos'}
                     </Text>
                   </TouchableOpacity>
@@ -655,9 +678,9 @@ const MapScreen = () => {
             
             {reports.length === 0 ? (
               <View style={tw`p-8 items-center`}>
-                <Icon name="map-marker-off" size={40} color="#d1d5db" />
-                <Text style={tw`text-gray-500 mt-4 text-lg`}>No hay reportes disponibles</Text>
-                <Text style={tw`text-sm text-gray-400 mt-2 text-center`}>
+                <Icon name="map-marker-off" size={40} color={darkMode ? "#4B5563" : "#d1d5db"} />
+                <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-4 text-lg`}>No hay reportes disponibles</Text>
+                <Text style={tw`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'} mt-2 text-center`}>
                   Sé el primero en crear un reporte tocando el botón +
                 </Text>
               </View>
@@ -677,7 +700,7 @@ const MapScreen = () => {
                         return (
                           <TouchableOpacity
                             key={report.id}
-                            style={tw`p-3 border-b border-gray-100 active:bg-gray-50`}
+                            style={tw`p-3 border-b ${darkMode ? 'border-gray-700 active:bg-gray-700' : 'border-gray-100 active:bg-gray-50'}`}
                             onPress={() => handleMarkerPress(report)}
                             activeOpacity={0.7}
                           >
@@ -700,10 +723,10 @@ const MapScreen = () => {
                               <View style={tw`flex-1`}>
                                 <View style={tw`flex-row justify-between items-start mb-1`}>
                                   <View style={tw`flex-1`}>
-                                    <Text style={tw`font-bold text-gray-900 text-sm`}>
+                                    <Text style={tw`font-bold ${darkMode ? 'text-white' : 'text-gray-900'} text-sm`}>
                                       {report.tipoIncidente}
                                     </Text>
-                                    <Text style={tw`text-xs text-gray-500 mt-0.5`}>
+                                    <Text style={tw`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-0.5`}>
                                       📍 {report.colonia || 'Sin colonia especificada'}
                                     </Text>
                                   </View>
@@ -713,13 +736,13 @@ const MapScreen = () => {
                                         {getStatusText(report.estado)}
                                       </Text>
                                     </View>
-                                    <Text style={tw`text-xs text-gray-400 mt-0.5`}>
+                                    <Text style={tw`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'} mt-0.5`}>
                                       {getTimeAgo(report.fechaCreacion)}
                                     </Text>
                                   </View>
                                 </View>
                                 
-                                <Text style={tw`text-gray-600 text-xs mb-2`} numberOfLines={2}>
+                                <Text style={tw`${darkMode ? 'text-gray-300' : 'text-gray-600'} text-xs mb-2`} numberOfLines={2}>
                                   {report.descripcionDetallada}
                                 </Text>
                                 
@@ -732,17 +755,17 @@ const MapScreen = () => {
                                         style={tw`w-4 h-4 rounded-full mr-1`}
                                       />
                                     ) : (
-                                      <View style={tw`w-4 h-4 bg-teal-100 rounded-full items-center justify-center mr-1`}>
+                                      <View style={tw`w-4 h-4 ${darkMode ? 'bg-teal-900' : 'bg-teal-100'} rounded-full items-center justify-center mr-1`}>
                                         <Icon name="account" size={10} color="#14b8a6" />
                                       </View>
                                     )}
-                                    <Text style={tw`text-gray-500 text-xs`}>
+                                    <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} text-xs`}>
                                       {report.usuario?.nombre || "Usuario"}
                                     </Text>
                                   </View>
                                   <View style={tw`flex-row items-center`}>
                                     <Icon name="star" size={10} color="#F59E0B" />
-                                    <Text style={tw`text-xs text-gray-500 ml-0.5`}>
+                                    <Text style={tw`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} ml-0.5`}>
                                       {report.usuario?.puntos || 0} pts
                                     </Text>
                                   </View>
@@ -764,7 +787,7 @@ const MapScreen = () => {
                       return (
                         <TouchableOpacity
                           key={report.id}
-                          style={tw`p-3 border-b border-gray-100 active:bg-gray-50`}
+                          style={tw`p-3 border-b ${darkMode ? 'border-gray-700 active:bg-gray-700' : 'border-gray-100 active:bg-gray-50'}`}
                           onPress={() => handleMarkerPress(report)}
                           activeOpacity={0.7}
                         >
@@ -787,10 +810,10 @@ const MapScreen = () => {
                             <View style={tw`flex-1`}>
                               <View style={tw`flex-row justify-between items-start mb-1`}>
                                 <View style={tw`flex-1`}>
-                                  <Text style={tw`font-bold text-gray-900 text-sm`}>
+                                  <Text style={tw`font-bold ${darkMode ? 'text-white' : 'text-gray-900'} text-sm`}>
                                     {report.tipoIncidente}
                                   </Text>
-                                  <Text style={tw`text-xs text-gray-500 mt-0.5`}>
+                                  <Text style={tw`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} mt-0.5`}>
                                     📍 {report.colonia || 'Sin colonia especificada'}
                                   </Text>
                                 </View>
@@ -800,13 +823,13 @@ const MapScreen = () => {
                                       {getStatusText(report.estado)}
                                     </Text>
                                   </View>
-                                  <Text style={tw`text-xs text-gray-400 mt-0.5`}>
+                                  <Text style={tw`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'} mt-0.5`}>
                                     {getTimeAgo(report.fechaCreacion)}
                                   </Text>
                                 </View>
                               </View>
                               
-                              <Text style={tw`text-gray-600 text-xs mb-2`} numberOfLines={2}>
+                              <Text style={tw`${darkMode ? 'text-gray-300' : 'text-gray-600'} text-xs mb-2`} numberOfLines={2}>
                                 {report.descripcionDetallada}
                               </Text>
                               
@@ -819,17 +842,17 @@ const MapScreen = () => {
                                       style={tw`w-4 h-4 rounded-full mr-1`}
                                     />
                                   ) : (
-                                    <View style={tw`w-4 h-4 bg-teal-100 rounded-full items-center justify-center mr-1`}>
+                                    <View style={tw`w-4 h-4 ${darkMode ? 'bg-teal-900' : 'bg-teal-100'} rounded-full items-center justify-center mr-1`}>
                                       <Icon name="account" size={10} color="#14b8a6" />
                                     </View>
                                   )}
-                                  <Text style={tw`text-gray-500 text-xs`}>
+                                  <Text style={tw`${darkMode ? 'text-gray-400' : 'text-gray-500'} text-xs`}>
                                     {report.usuario?.nombre || "Usuario"}
                                   </Text>
                                 </View>
                                 <View style={tw`flex-row items-center`}>
                                   <Icon name="star" size={10} color="#F59E0B" />
-                                  <Text style={tw`text-xs text-gray-500 ml-0.5`}>
+                                  <Text style={tw`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'} ml-0.5`}>
                                     {report.usuario?.puntos || 0} pts
                                   </Text>
                                 </View>
@@ -851,7 +874,7 @@ const MapScreen = () => {
                   >
                     <View style={tw`flex-row items-center`}>
                       <Icon name="chevron-down" size={16} color="#14b8a6" />
-                      <Text style={tw`text-teal-700 font-medium ml-1 text-sm`}>
+                      <Text style={tw`${darkMode ? 'text-teal-300' : 'text-teal-700'} font-medium ml-1 text-sm`}>
                         Ver todos los reportes ({reports.length})
                       </Text>
                     </View>

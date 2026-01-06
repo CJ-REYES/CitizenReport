@@ -1,5 +1,6 @@
+// navigation/AppNavigator.jsx
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Alert, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Alert, Dimensions, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import tw from 'twrnc';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -15,185 +16,158 @@ import AdminScreen from '../screens/AdminScreen';
 const Tab = createBottomTabNavigator();
 const { height } = Dimensions.get('window');
 
-// Componente para el botón flotante
-const FloatingButton = ({ onPress }) => (
-  <TouchableOpacity
-    style={tw`absolute -top-7 w-14 h-14 bg-[#2E7D32] rounded-full items-center justify-center shadow-lg border-4 border-white`}
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <Icon name="plus" size={28} color="white" />
-  </TouchableOpacity>
-);
-
-// Pantallas simples (para pruebas)
-const MapScreenComp = () => (
-  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
-    <Text style={tw`text-xl font-bold text-gray-900`}>Mapa</Text>
-    <Text style={tw`text-gray-500`}>En desarrollo</Text>
-  </View>
-);
-
-const ArcadeScreenComp = () => (
-  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
-    <Text style={tw`text-xl font-bold text-gray-900`}>Arcade</Text>
-    <Text style={tw`text-gray-500`}>En desarrollo</Text>
-  </View>
-);
-
-const LeaderboardScreenComp = () => (
-  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
-    <Text style={tw`text-xl font-bold text-gray-900`}>Ranking</Text>
-    <Text style={tw`text-gray-500`}>En desarrollo</Text>
-  </View>
-);
-
-const ProfileScreenComp = () => (
-  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
-    <Text style={tw`text-xl font-bold text-gray-900`}>Perfil</Text>
-    <Text style={tw`text-gray-500`}>En desarrollo</Text>
-  </View>
-);
-
-const AdminScreenComp = () => (
-  <View style={tw`flex-1 bg-gray-50 items-center justify-center`}>
-    <Text style={tw`text-xl font-bold text-gray-900`}>Admin</Text>
-    <Text style={tw`text-gray-500`}>En desarrollo</Text>
-  </View>
-);
-
-const AppNavigator = ({ currentUser, onLogout }) => {
+const AppNavigator = ({ currentUser }) => {
   const [showReportModal, setShowReportModal] = useState(false);
 
-  const tabBarOptions = {
-    activeTintColor: '#2E7D32',
-    inactiveTintColor: '#9CA3AF',
-    style: {
-      backgroundColor: 'white',
-      borderTopWidth: 1,
-      borderTopColor: '#E5E7EB',
-      height: 60,
-    },
-    labelStyle: {
-      fontSize: 11,
-      marginBottom: 4,
-    },
+  // Colores
+  const PRIMARY_COLOR = '#10B981'; // Verde CiudadApp
+  const INACTIVE_COLOR = '#9CA3AF';
+
+  const handleReportTypeSelect = (type) => {
+    setShowReportModal(false);
+    Alert.alert('Reporte', `Seleccionaste: ${type.label}`);
   };
 
+  const reportCategories = [
+    { icon: 'road', label: 'Bache', color: '#F97316', description: 'Reporta huecos en las calles' },
+    { icon: 'lightbulb-outline', label: 'Alumbrado', color: '#F59E0B', description: 'Fallas de luz' },
+    { icon: 'trash-can-outline', label: 'Basura', color: '#10B981', description: 'Acumulación de desechos' },
+    { icon: 'spray', label: 'Vandalismo', color: '#8B5CF6', description: 'Daños públicos' },
+    { icon: 'water-outline', label: 'Fuga', color: '#0EA5E9', description: 'Problemas de agua' },
+    { icon: 'alert-octagon', label: 'Otro', color: '#EF4444', description: 'Otros problemas' },
+  ];
+
   return (
-    <>
+    <View style={tw`flex-1`}>
+      {/* 1. NAVEGADOR CON LAS 5 PESTAÑAS */}
       <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-
-            if (route.name === 'Dashboard') {
-              iconName = focused ? 'view-dashboard' : 'view-dashboard-outline';
-            } else if (route.name === 'Mapa') {
-              iconName = focused ? 'map' : 'map-outline';
-            } else if (route.name === 'Arcade') {
-              iconName = focused ? 'gamepad-variant' : 'gamepad-variant-outline';
-            } else if (route.name === 'Ranking') {
-              iconName = focused ? 'trophy' : 'trophy-outline';
-            } else if (route.name === 'Perfil') {
-              iconName = focused ? 'account' : 'account-outline';
-            } else if (route.name === 'Admin') {
-              iconName = focused ? 'shield-check' : 'shield-check-outline';
-            }
-
-            // Si es la tercera pestaña (Arcade), mostrar botón flotante
-            if (route.name === 'Arcade') {
-              return (
-                <View style={tw`items-center justify-center`}>
-                  <FloatingButton onPress={() => setShowReportModal(true)} />
-                  <Icon name={iconName} size={size} color={color} style={tw`mt-7`} />
-                </View>
-              );
-            }
-
-            return <Icon name={iconName} size={size} color={color} />;
+        initialRouteName="Dashboard"
+        screenOptions={{
+          tabBarActiveTintColor: PRIMARY_COLOR,
+          tabBarInactiveTintColor: INACTIVE_COLOR,
+          tabBarStyle: {
+            backgroundColor: 'white',
+            borderTopWidth: 1,
+            borderTopColor: '#E5E7EB',
+            height: 65, // Altura suficiente para los textos
+            paddingBottom: 10,
+            paddingTop: 8,
           },
-          ...tabBarOptions,
-        })}
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '500',
+            marginTop: -2,
+          },
+          headerShown: false,
+        }}
       >
         <Tab.Screen 
           name="Dashboard" 
-          component={DashboardScreen} 
-          options={{ title: 'Dashboard' }}
+          component={DashboardScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Icon name="view-dashboard" size={26} color={color} />,
+            title: 'Inicio'
+          }}
         />
         <Tab.Screen 
           name="Mapa" 
-          component={MapScreenComp} 
-          options={{ title: 'Mapa' }}
+          component={MapScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Icon name="map" size={26} color={color} />,
+          }}
         />
         <Tab.Screen 
           name="Arcade" 
-          component={ArcadeScreenComp} 
-          options={{ title: 'Reportar' }}
+          component={ArcadeScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Icon name="gamepad-variant" size={26} color={color} />,
+          }}
         />
         <Tab.Screen 
           name="Ranking" 
-          component={LeaderboardScreenComp} 
-          options={{ title: 'Ranking' }}
+          component={LeaderboardScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Icon name="trophy" size={26} color={color} />,
+          }}
         />
         <Tab.Screen 
           name="Perfil" 
-          component={ProfileScreenComp} 
-          options={{ title: 'Perfil' }}
+          component={ProfileScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => <Icon name="account" size={26} color={color} />,
+          }}
         />
-        {currentUser?.role === 'admin' && (
-          <Tab.Screen 
-            name="Admin" 
-            component={AdminScreenComp} 
-            options={{ title: 'Admin' }}
-          />
-        )}
+        {/* Si el admin necesita pestaña extra, iría aquí, pero ocultamos la lógica por ahora */}
       </Tab.Navigator>
 
-      {/* Modal para crear reporte */}
+      {/* 2. BOTÓN FLOTANTE (FAB) - FUERA DEL NAVIGATOR */}
+      {/* Está posicionado absolutamente "a un costado" (Derecha) */}
+      <TouchableOpacity
+        onPress={() => setShowReportModal(true)}
+        activeOpacity={0.8}
+        style={[
+          tw`absolute bg-teal-500 items-center justify-center rounded-full shadow-lg`,
+          {
+            backgroundColor: '#10B981',
+            bottom: 90, // Flota encima de la barra de pestañas
+            right: 20,  // A un costado (derecha)
+            width: 60,
+            height: 60,
+            elevation: 8, // Sombra fuerte en Android para que se vea "bonito"
+            shadowColor: '#10B981', // Sombra verde en iOS
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4.5,
+            zIndex: 999, // Asegura que esté siempre arriba
+          }
+        ]}
+      >
+        <Icon name="plus" size={32} color="white" />
+      </TouchableOpacity>
+
+      {/* 3. MODAL DE REPORTE */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={showReportModal}
         onRequestClose={() => setShowReportModal(false)}
       >
-        <View style={tw`flex-1 justify-end bg-black/50`}>
-          <View style={[tw`bg-white rounded-t-3xl p-6`, { maxHeight: height * 0.6 }]}>
-            <View style={tw`flex-row justify-between items-center mb-6`}>
-              <Text style={tw`text-xl font-bold text-gray-900`}>Crear Reporte</Text>
-              <TouchableOpacity onPress={() => setShowReportModal(false)}>
-                <Icon name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
+        <View style={tw`flex-1 justify-end bg-black/60`}>
+          <TouchableOpacity 
+            style={tw`flex-1`} 
+            onPress={() => setShowReportModal(false)} 
+          />
+          <View style={[tw`bg-white rounded-t-3xl p-6 shadow-2xl`, { paddingBottom: 40 }]}>
+            <View style={tw`items-center mb-2`}>
+              <View style={tw`w-16 h-1 bg-gray-200 rounded-full`} />
             </View>
+            
+            <Text style={tw`text-xl font-bold text-gray-800 mb-1 text-center`}>Crear Nuevo Reporte</Text>
+            <Text style={tw`text-sm text-gray-500 mb-6 text-center`}>Ayuda a mejorar tu ciudad reportando un problema</Text>
 
-            <View style={tw`space-y-3`}>
-              {[
-                { icon: 'road', label: 'Bache', color: '#F97316' },
-                { icon: 'lightbulb-outline', label: 'Alumbrado', color: '#F59E0B' },
-                { icon: 'trash-can-outline', label: 'Basura', color: '#10B981' },
-                { icon: 'water-outline', label: 'Fuga de Agua', color: '#0EA5E9' },
-                { icon: 'alert-octagon', label: 'Otro Problema', color: '#EF4444' },
-              ].map((item, index) => (
+            <View style={tw`flex-row flex-wrap justify-between`}>
+              {reportCategories.map((item, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={tw`flex-row items-center p-4 bg-gray-50 rounded-lg`}
-                  onPress={() => {
-                    setShowReportModal(false);
-                    Alert.alert('Crear Reporte', `Crear reporte de ${item.label}`);
-                  }}
-                  activeOpacity={0.7}
+                  style={[tw`items-center mb-6`, { width: '30%' }]}
+                  onPress={() => handleReportTypeSelect(item)}
                 >
-                  <View style={[tw`w-10 h-10 rounded-full items-center justify-center mr-4`, { backgroundColor: `${item.color}20` }]}>
-                    <Icon name={item.icon} size={20} color={item.color} />
+                  <View 
+                    style={[
+                      tw`w-16 h-16 rounded-2xl items-center justify-center mb-2 shadow-sm`,
+                      { backgroundColor: `${item.color}15` }
+                    ]}
+                  >
+                    <Icon name={item.icon} size={30} color={item.color} />
                   </View>
-                  <Text style={tw`text-lg font-medium text-gray-800`}>{item.label}</Text>
+                  <Text style={tw`text-xs font-semibold text-gray-600`}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         </View>
       </Modal>
-    </>
+    </View>
   );
 };
 

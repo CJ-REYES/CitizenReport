@@ -1,3 +1,4 @@
+// src/App.jsx (actualizado)
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -6,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/components/ui/use-toast';
 
 // Pages
+import InfoPage from '@/pages/InfoPage';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
 import MapPage from '@/pages/MapPage';
@@ -44,10 +46,27 @@ function App() {
     });
   };
 
+  const handleContinueAsGuest = () => {
+    const guestUser = {
+      id: 'guest-' + Date.now(),
+      username: 'Invitado',
+      email: 'guest@ciudadapp.com',
+      role: 'guest',
+      points: 0,
+      level: 1,
+      isGuest: true
+    };
+    setCurrentUser(guestUser);
+    localStorage.setItem('currentUser', JSON.stringify(guestUser));
+    toast({
+      title: "¡Bienvenido!",
+      description: "Estás explorando como invitado",
+    });
+  };
+
   const handlePointsUpdate = (points) => {
-    if (!currentUser) return;
+    if (!currentUser || currentUser.isGuest) return;
     
-    // Lógica para actualizar los puntos y persistir el usuario
     const updatedUser = { ...currentUser, points: currentUser.points + points };
     setCurrentUser(updatedUser);
     localStorage.setItem('currentUser', JSON.stringify(updatedUser));
@@ -64,40 +83,95 @@ function App() {
         <title>CiudadApp - Plataforma de Impacto Ciudadano</title>
       </Helmet>
       
-      {currentUser ? (
-        // VISTA AUTENTICADA: Solo Navigation envuelve el contenido
-        <div> 
-          <Navigation currentUser={currentUser} onLogout={handleLogout}>
-            <Routes>
-              <Route path="/" element={<DashboardPage currentUser={currentUser} />} />
-              <Route path="/map" element={<MapPage currentUser={currentUser} onPointsEarned={handlePointsUpdate} />} />
-              <Route path="/arcade" element={<ArcadePage currentUser={currentUser} onPointsUpdate={handlePointsUpdate} />} />
-              <Route path="/leaderboard" element={<LeaderboardPage />} />
-              <Route path="/profile" element={<ProfilePage currentUser={currentUser} />} />
-              <Route path="/admin" element={<AdminPage currentUser={currentUser} />} />
-              {/* Cualquier otra ruta redirige al dashboard */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Navigation>
-        </div>
-      ) : (
-        // VISTA PÚBLICA / LOGIN: Se mantiene el fondo de degradado para el login
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-          <Routes>
+      <Routes>
+        {/* Ruta principal: Landing Page para usuarios no autenticados */}
+        <Route 
+          path="/" 
+          element={
+            currentUser ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <InfoPage 
+                onContinueAsGuest={handleContinueAsGuest}
+                isAuthenticated={!!currentUser}
+              />
+            )
+          } 
+        />
+        
+        <Route 
+          path="/login" 
+          element={
+            currentUser ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <LoginPage 
+                onLogin={handleLogin} 
+                isAuthenticated={!!currentUser} 
+              />
+            )
+          } 
+        />
+        
+        {/* Rutas protegidas */}
+        {currentUser ? (
+          <>
             <Route 
-              path="/login" 
+              path="/dashboard" 
               element={
-                <LoginPage 
-                  onLogin={handleLogin} 
-                  isAuthenticated={!!currentUser} 
-                />
+                <Navigation currentUser={currentUser} onLogout={handleLogout}>
+                  <DashboardPage currentUser={currentUser} />
+                </Navigation>
               } 
             />
-            {/* Si intenta entrar a cualquier otra ruta sin loguearse, va al login */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </div>
-      )}
+            <Route 
+              path="/map" 
+              element={
+                <Navigation currentUser={currentUser} onLogout={handleLogout}>
+                  <MapPage currentUser={currentUser} onPointsEarned={handlePointsUpdate} />
+                </Navigation>
+              } 
+            />
+            <Route 
+              path="/arcade" 
+              element={
+                <Navigation currentUser={currentUser} onLogout={handleLogout}>
+                  <ArcadePage currentUser={currentUser} onPointsUpdate={handlePointsUpdate} />
+                </Navigation>
+              } 
+            />
+            <Route 
+              path="/leaderboard" 
+              element={
+                <Navigation currentUser={currentUser} onLogout={handleLogout}>
+                  <LeaderboardPage />
+                </Navigation>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <Navigation currentUser={currentUser} onLogout={handleLogout}>
+                  <ProfilePage currentUser={currentUser} />
+                </Navigation>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <Navigation currentUser={currentUser} onLogout={handleLogout}>
+                  <AdminPage currentUser={currentUser} />
+                </Navigation>
+              } 
+            />
+            {/* Redirección para rutas no encontradas en estado autenticado */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </>
+        ) : (
+          /* Redirección para rutas no encontradas en estado no autenticado */
+          <Route path="*" element={<Navigate to="/" replace />} />
+        )}
+      </Routes>
 
       <Toaster />
     </Router>

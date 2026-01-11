@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BackEnd.Data;
 using BackEnd.Model;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace BackEnd.Controllers
 {
@@ -20,8 +22,9 @@ namespace BackEnd.Controllers
             _archivoService = archivoService;
         }
 
-        // GET: api/reportes
+        // ============ ENDPOINTS PÚBLICOS (todos pueden ver) ============
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<object>>> GetAllReportes()
         {
             try
@@ -35,7 +38,7 @@ namespace BackEnd.Controllers
                 {
                     r.Id,
                     r.TipoIncidente,
-                    r.Colonia, // Agregado al GET
+                    r.Colonia,
                     r.DescripcionDetallada,
                     r.Latitud,
                     r.Longitud,
@@ -59,14 +62,22 @@ namespace BackEnd.Controllers
             }
         }
 
-        // POST: api/reportes
+        // ============ SOLO USUARIOS REGISTRADOS (no invitados) ============
         [HttpPost]
         [Consumes("multipart/form-data")]
+        [Authorize(Policy = "RegisteredUser")]
         public async Task<ActionResult<Reporte>> CrearReporte([FromForm] CrearReporteConArchivoDto crearReporteDto)
         {
             try
             {
                 _logger.LogInformation("Iniciando creación de reporte...");
+
+                // Verificar que el usuario del token coincide
+                var tokenUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (tokenUserId != crearReporteDto.CiudadanoId)
+                {
+                    return Forbid("No puedes crear reportes para otros usuarios.");
+                }
 
                 // 1. VALIDACIÓN DE CAMPOS BÁSICOS
                 if (string.IsNullOrWhiteSpace(crearReporteDto.TipoIncidente))
@@ -134,7 +145,7 @@ namespace BackEnd.Controllers
                 {
                     CiudadanoId = crearReporteDto.CiudadanoId,
                     TipoIncidente = crearReporteDto.TipoIncidente,
-                    Colonia = crearReporteDto.Colonia, // Guardar Colonia
+                    Colonia = crearReporteDto.Colonia,
                     DescripcionDetallada = crearReporteDto.DescripcionDetallada,
                     Latitud = latitud,
                     Longitud = longitud,
@@ -170,12 +181,19 @@ namespace BackEnd.Controllers
             }
         }
 
-        // GET: api/reportes/porvalidar/{idCiudadano}
         [HttpGet("porvalidar/{idCiudadano}")]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<object>>> GetReportesPorValidar(int idCiudadano)
         {
             try
             {
+                // Verificar que el usuario del token coincide
+                var tokenUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (tokenUserId != idCiudadano)
+                {
+                    return Forbid("No puedes acceder a los reportes por validar de otro usuario.");
+                }
+
                 var reportesYaValidados = await _context.ReporteValidaciones
                     .Where(rv => rv.CiudadanoId == idCiudadano)
                     .Select(rv => rv.ReporteId)
@@ -193,7 +211,7 @@ namespace BackEnd.Controllers
                 {
                     r.Id,
                     r.TipoIncidente,
-                    r.Colonia, // Agregado
+                    r.Colonia,
                     r.DescripcionDetallada,
                     r.Latitud,
                     r.Longitud,
@@ -217,12 +235,19 @@ namespace BackEnd.Controllers
             }
         }
 
-        // POST: api/reportes/validar
-        [HttpPost("validar")]
+         [HttpPost("validar")]
+        [Authorize(Policy = "RegisteredUser")]
         public async Task<IActionResult> ValidarReporte([FromBody] ValidacionDto validacionDto)
         {
             try
             {
+                // Verificar que el usuario del token coincide
+                var tokenUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (tokenUserId != validacionDto.CiudadanoId)
+                {
+                    return Forbid("No puedes validar reportes como otro usuario.");
+                }
+
                 var reporte = await _context.Reportes
                     .FirstOrDefaultAsync(r => r.Id == validacionDto.ReporteId && r.Estado == "EnValidacion");
                 
@@ -302,15 +327,21 @@ namespace BackEnd.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
-
-        // PUT: api/reportes/5
-        [HttpPut("{id}")]
+                [HttpPut("{id}")]
+        [Authorize(Policy = "RegisteredUser")]
         public async Task<IActionResult> ActualizarReporte(int id, ActualizarReporteDto actualizarReporteDto)
         {
             try
             {
                 var reporte = await _context.Reportes.FindAsync(id);
                 if (reporte == null) return NotFound();
+
+                // Verificar que el usuario es dueño del reporte
+                var tokenUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (reporte.CiudadanoId != tokenUserId)
+                {
+                    return Forbid("No puedes editar reportes de otros usuarios.");
+                }
 
                 if (reporte.Estado != "Pendiente" && reporte.Estado != "EnValidacion")
                     return BadRequest("Solo se pueden editar reportes en estado 'Pendiente' o 'EnValidacion'");
@@ -327,8 +358,9 @@ namespace BackEnd.Controllers
             }
         }
 
-        // DELETE: api/reportes/5
+
         [HttpDelete("{id}")]
+        [Authorize(Policy = "RegisteredUser")]
         public async Task<IActionResult> EliminarReporte(int id)
         {
             try
@@ -336,8 +368,12 @@ namespace BackEnd.Controllers
                 var reporte = await _context.Reportes.FindAsync(id);
                 if (reporte == null) return NotFound();
 
-                // Nota: Asumiendo que validas el usuario en otro lado o middleware
-                // if (reporte.CiudadanoId != usuarioAutenticadoId) return Forbid();
+                // Verificar que el usuario es dueño del reporte
+                var tokenUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (reporte.CiudadanoId != tokenUserId)
+                {
+                    return Forbid("No puedes eliminar reportes de otros usuarios.");
+                }
 
                 if (reporte.Estado != "Pendiente" && reporte.Estado != "EnValidacion")
                     return BadRequest("Solo se pueden eliminar reportes en estado 'Pendiente' o 'EnValidacion'");
@@ -358,172 +394,173 @@ namespace BackEnd.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
-// GET: api/reportes/colonia-mas-alumbrado
-[HttpGet("colonia-mas-alumbrado")]
-public async Task<ActionResult<object>> GetColoniaConMasAlumbradoPublico()
-{
-    try
-    {
-        var coloniasAlumbrado = await _context.Reportes
-            .Where(r => r.TipoIncidente == "Alumbrado público" || r.TipoIncidente == "Alumbrado")
-            .Where(r => !string.IsNullOrEmpty(r.Colonia)) // Solo colonias con nombre
-            .GroupBy(r => r.Colonia)
-            .Select(g => new
-            {
-                Colonia = g.Key,
-                TotalReportes = g.Count()
-            })
-            .OrderByDescending(x => x.TotalReportes)
-            .ToListAsync();
 
-        var coloniaMasAlumbrado = coloniasAlumbrado.FirstOrDefault();
 
-        if (coloniaMasAlumbrado == null)
+        // ============ ENDPOINTS PÚBLICOS (continuación) ============
+        [HttpGet("colonia-mas-alumbrado")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> GetColoniaConMasAlumbradoPublico()
         {
-            // Verificar si hay reportes de alumbrado pero sin colonia asignada
-            var totalAlumbradoSinColonia = await _context.Reportes
-                .CountAsync(r => (r.TipoIncidente == "Alumbrado público" || r.TipoIncidente == "Alumbrado") 
-                              && string.IsNullOrEmpty(r.Colonia));
-
-            if (totalAlumbradoSinColonia > 0)
+            try
             {
+                var coloniasAlumbrado = await _context.Reportes
+                    .Where(r => r.TipoIncidente == "Alumbrado público" || r.TipoIncidente == "Alumbrado")
+                    .Where(r => !string.IsNullOrEmpty(r.Colonia))
+                    .GroupBy(r => r.Colonia)
+                    .Select(g => new
+                    {
+                        Colonia = g.Key,
+                        TotalReportes = g.Count()
+                    })
+                    .OrderByDescending(x => x.TotalReportes)
+                    .ToListAsync();
+
+                var coloniaMasAlumbrado = coloniasAlumbrado.FirstOrDefault();
+
+                if (coloniaMasAlumbrado == null)
+                {
+                    var totalAlumbradoSinColonia = await _context.Reportes
+                        .CountAsync(r => (r.TipoIncidente == "Alumbrado público" || r.TipoIncidente == "Alumbrado") 
+                                      && string.IsNullOrEmpty(r.Colonia));
+
+                    if (totalAlumbradoSinColonia > 0)
+                    {
+                        return Ok(new
+                        {
+                            ColoniaMasAlumbrado = "Colonia no especificada",
+                            TotalReportesAlumbrado = totalAlumbradoSinColonia
+                        });
+                    }
+
+                    return Ok(new
+                    {
+                        ColoniaMasAlumbrado = "Sin reportes",
+                        TotalReportesAlumbrado = 0
+                    });
+                }
+
                 return Ok(new
                 {
-                    ColoniaMasAlumbrado = "Colonia no especificada",
-                    TotalReportesAlumbrado = totalAlumbradoSinColonia
+                    ColoniaMasAlumbrado = coloniaMasAlumbrado.Colonia,
+                    TotalReportesAlumbrado = coloniaMasAlumbrado.TotalReportes
                 });
             }
-
-            return Ok(new
+            catch (Exception ex)
             {
-                ColoniaMasAlumbrado = "Sin reportes",
-                TotalReportesAlumbrado = 0
-            });
+                _logger.LogError(ex, "Error al obtener la colonia con más alumbrado público");
+                return StatusCode(500, "Error interno del servidor");
+            }
         }
 
-        return Ok(new
+        [HttpGet("colonia-mas-baches")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> GetColoniaConMasBaches()
         {
-            ColoniaMasAlumbrado = coloniaMasAlumbrado.Colonia,
-            TotalReportesAlumbrado = coloniaMasAlumbrado.TotalReportes
-        });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al obtener la colonia con más alumbrado público");
-        return StatusCode(500, "Error interno del servidor");
-    }
-}
-
-// GET: api/reportes/colonia-mas-baches
-[HttpGet("colonia-mas-baches")]
-public async Task<ActionResult<object>> GetColoniaConMasBaches()
-{
-    try
-    {
-        var coloniasBaches = await _context.Reportes
-            .Where(r => r.TipoIncidente == "Baches")
-            .Where(r => !string.IsNullOrEmpty(r.Colonia)) // Solo colonias con nombre
-            .GroupBy(r => r.Colonia)
-            .Select(g => new
+            try
             {
-                Colonia = g.Key,
-                TotalReportes = g.Count()
-            })
-            .OrderByDescending(x => x.TotalReportes)
-            .ToListAsync();
+                var coloniasBaches = await _context.Reportes
+                    .Where(r => r.TipoIncidente == "Baches")
+                    .Where(r => !string.IsNullOrEmpty(r.Colonia))
+                    .GroupBy(r => r.Colonia)
+                    .Select(g => new
+                    {
+                        Colonia = g.Key,
+                        TotalReportes = g.Count()
+                    })
+                    .OrderByDescending(x => x.TotalReportes)
+                    .ToListAsync();
 
-        var coloniaMasBaches = coloniasBaches.FirstOrDefault();
+                var coloniaMasBaches = coloniasBaches.FirstOrDefault();
 
-        if (coloniaMasBaches == null)
-        {
-            // Verificar si hay reportes de baches pero sin colonia asignada
-            var totalBachesSinColonia = await _context.Reportes
-                .CountAsync(r => r.TipoIncidente == "Baches" && string.IsNullOrEmpty(r.Colonia));
+                if (coloniaMasBaches == null)
+                {
+                    var totalBachesSinColonia = await _context.Reportes
+                        .CountAsync(r => r.TipoIncidente == "Baches" && string.IsNullOrEmpty(r.Colonia));
 
-            if (totalBachesSinColonia > 0)
-            {
+                    if (totalBachesSinColonia > 0)
+                    {
+                        return Ok(new
+                        {
+                            ColoniaMasBaches = "Colonia no especificada",
+                            TotalReportesBaches = totalBachesSinColonia
+                        });
+                    }
+
+                    return Ok(new
+                    {
+                        ColoniaMasBaches = "Sin reportes",
+                        TotalReportesBaches = 0
+                    });
+                }
+
                 return Ok(new
                 {
-                    ColoniaMasBaches = "Colonia no especificada",
-                    TotalReportesBaches = totalBachesSinColonia
+                    ColoniaMasBaches = coloniaMasBaches.Colonia,
+                    TotalReportesBaches = coloniaMasBaches.TotalReportes
                 });
             }
-
-            return Ok(new
+            catch (Exception ex)
             {
-                ColoniaMasBaches = "Sin reportes",
-                TotalReportesBaches = 0
-            });
+                _logger.LogError(ex, "Error al obtener la colonia con más baches");
+                return StatusCode(500, "Error interno del servidor");
+            }
         }
 
-        return Ok(new
+        [HttpGet("colonia-mas-danos")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> GetColoniaConMasDanos()
         {
-            ColoniaMasBaches = coloniaMasBaches.Colonia,
-            TotalReportesBaches = coloniaMasBaches.TotalReportes
-        });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al obtener la colonia con más baches");
-        return StatusCode(500, "Error interno del servidor");
-    }
-}
-
-// GET: api/reportes/colonia-mas-danos
-[HttpGet("colonia-mas-danos")]
-public async Task<ActionResult<object>> GetColoniaConMasDanos()
-{
-    try
-    {
-        var todasLasColonias = await _context.Reportes
-            .Where(r => !string.IsNullOrEmpty(r.Colonia)) // Solo colonias con nombre
-            .GroupBy(r => r.Colonia)
-            .Select(g => new
+            try
             {
-                Colonia = g.Key,
-                TotalReportes = g.Count()
-            })
-            .OrderByDescending(x => x.TotalReportes)
-            .ToListAsync();
+                var todasLasColonias = await _context.Reportes
+                    .Where(r => !string.IsNullOrEmpty(r.Colonia))
+                    .GroupBy(r => r.Colonia)
+                    .Select(g => new
+                    {
+                        Colonia = g.Key,
+                        TotalReportes = g.Count()
+                    })
+                    .OrderByDescending(x => x.TotalReportes)
+                    .ToListAsync();
 
-        var coloniaMasDanos = todasLasColonias.FirstOrDefault();
+                var coloniaMasDanos = todasLasColonias.FirstOrDefault();
 
-        if (coloniaMasDanos == null)
-        {
-            // Verificar si hay reportes pero sin colonia asignada
-            var totalReportesSinColonia = await _context.Reportes
-                .CountAsync(r => string.IsNullOrEmpty(r.Colonia));
+                if (coloniaMasDanos == null)
+                {
+                    var totalReportesSinColonia = await _context.Reportes
+                        .CountAsync(r => string.IsNullOrEmpty(r.Colonia));
 
-            if (totalReportesSinColonia > 0)
-            {
+                    if (totalReportesSinColonia > 0)
+                    {
+                        return Ok(new
+                        {
+                            ColoniaMasDanos = "Colonia no especificada",
+                            TotalReportes = totalReportesSinColonia
+                        });
+                    }
+
+                    return Ok(new
+                    {
+                        ColoniaMasDanos = "Sin reportes",
+                        TotalReportes = 0
+                    });
+                }
+
                 return Ok(new
                 {
-                    ColoniaMasDanos = "Colonia no especificada",
-                    TotalReportes = totalReportesSinColonia
+                    ColoniaMasDanos = coloniaMasDanos.Colonia,
+                    TotalReportes = coloniaMasDanos.TotalReportes
                 });
             }
-
-            return Ok(new
+            catch (Exception ex)
             {
-                ColoniaMasDanos = "Sin reportes",
-                TotalReportes = 0
-            });
+                _logger.LogError(ex, "Error al obtener la colonia con más daños");
+                return StatusCode(500, "Error interno del servidor");
+            }
         }
 
-        return Ok(new
-        {
-            ColoniaMasDanos = coloniaMasDanos.Colonia,
-            TotalReportes = coloniaMasDanos.TotalReportes
-        });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error al obtener la colonia con más daños");
-        return StatusCode(500, "Error interno del servidor");
-    }
-}
-        // GET: api/reportes/cercanos
         [HttpGet("cercanos")]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<object>>> GetReportesCercanos(
             [FromQuery] double? latitud = null, 
             [FromQuery] double? longitud = null, 
@@ -565,7 +602,7 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
                     {
                         r.Id,
                         r.TipoIncidente,
-                        r.Colonia, // Agregado
+                        r.Colonia,
                         r.Estado,
                         r.Latitud,
                         r.Longitud,
@@ -599,12 +636,28 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
             }
         }
 
-        // GET: api/reportes/misreportes/{id}
-        [HttpGet("misreportes/{id}")]
+           [HttpGet("misreportes/{id}")]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<object>>> GetMisReportes(int id)
         {
             try
             {
+                // Verificar si es invitado
+                var currentUserIsGuest = User.IsInRole("Guest") || 
+                                       User.Claims.FirstOrDefault(c => c.Type == "IsGuest")?.Value == "true";
+                
+                if (currentUserIsGuest)
+                {
+                    return Ok(new List<object>());
+                }
+
+                // Verificar que el usuario del token coincide
+                var tokenUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                if (tokenUserId != id)
+                {
+                    return Forbid("No puedes ver los reportes de otro usuario.");
+                }
+
                 var usuarioExiste = await _context.Users.AnyAsync(u => u.Id == id);
                 if (!usuarioExiste) return NotFound($"No se encontró usuario con ID {id}");
 
@@ -618,7 +671,7 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
                 {
                     r.Id,
                     r.TipoIncidente,
-                    r.Colonia, // Agregado
+                    r.Colonia,
                     r.DescripcionDetallada,
                     r.Latitud,
                     r.Longitud,
@@ -642,8 +695,8 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
             }
         }
 
-        // GET: api/reportes/filtrar
         [HttpGet("filtrar")]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<object>>> FiltrarReportes(
             [FromQuery] string? tipo = null, 
             [FromQuery] string? estado = null)
@@ -668,7 +721,7 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
                 {
                     r.Id,
                     r.TipoIncidente,
-                    r.Colonia, // Agregado
+                    r.Colonia,
                     r.DescripcionDetallada,
                     r.Estado,
                     r.Latitud,
@@ -692,8 +745,8 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
             }
         }
 
-        // GET: api/reportes/{id}
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<object>> GetReporte(int id)
         {
             try
@@ -708,7 +761,7 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
                 {
                     r.Id,
                     r.TipoIncidente,
-                    r.Colonia, // Agregado
+                    r.Colonia,
                     r.DescripcionDetallada,
                     r.Latitud,
                     r.Longitud,
@@ -730,8 +783,8 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
             }
         }
 
-        // GET: api/reportes/configuracion
         [HttpGet("configuracion")]
+        [AllowAnonymous]
         public ActionResult<object> VerificarConfiguracion()
         {
             try
@@ -901,11 +954,7 @@ public async Task<ActionResult<object>> GetColoniaConMasDanos()
     {
         public int CiudadanoId { get; set; }
         public string TipoIncidente { get; set; } = string.Empty;
-        
-        // --- NUEVO CAMPO EN DTO ---
         public string Colonia { get; set; } = string.Empty;
-        // --------------------------
-
         public string DescripcionDetallada { get; set; } = string.Empty;
         public double Latitud { get; set; }
         public double Longitud { get; set; }

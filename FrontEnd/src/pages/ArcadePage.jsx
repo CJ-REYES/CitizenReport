@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import AsteroidsGame from '@/components/Asteroids';
-import { Heart, Trophy, Coins, Zap, RefreshCw } from 'lucide-react';
+import { Heart, Trophy, Coins, RefreshCw, Shield, LogIn, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getUserStats, getUserMinigameStats } from '@/services/minigameService';
+import { getUserStats } from '@/services/minigameService';
+import AuthGuard from '@/components/AuthGuard';
+import { logout } from '@/services/authService';
+import { checkIfGuest } from '@/utils/authUtils';
+import { Button } from '@/components/ui/button';
 
 const ArcadePage = ({ currentUser, onPointsUpdate }) => {
   const MAX_LIVES = 5;
@@ -16,10 +20,32 @@ const ArcadePage = ({ currentUser, onPointsUpdate }) => {
   });
 
   const isOnline = !!currentUser;
+  const isGuest = checkIfGuest(currentUser);
+
+  // Limpiar token de invitado
+  const clearGuestToken = () => {
+    if (isGuest) {
+      logout();
+      localStorage.removeItem('asteroidsOfflineStats');
+      localStorage.removeItem('guestSession');
+      return true;
+    }
+    return false;
+  };
+
+  const handleLoginRedirect = () => {
+    clearGuestToken();
+    window.location.href = '/login';
+  };
+
+  const handleRegisterRedirect = () => {
+    clearGuestToken();
+    window.location.href = '/register';
+  };
 
   // Función para cargar estadísticas desde el backend
   const loadUserStats = async () => {
-    if (!isOnline || !currentUser?.idUser) return;
+    if (!isOnline || !currentUser?.idUser || isGuest) return;
     
     setUserStats(prev => ({ ...prev, isLoading: true }));
     
@@ -39,10 +65,10 @@ const ArcadePage = ({ currentUser, onPointsUpdate }) => {
 
   // Cargar estadísticas al montar el componente
   useEffect(() => {
-    if (isOnline) {
+    if (isOnline && !isGuest) {
       loadUserStats();
     } else {
-      // En modo offline, cargar desde localStorage
+      // En modo offline o invitado, cargar desde localStorage
       const savedStats = localStorage.getItem('asteroidsOfflineStats');
       if (savedStats) {
         const stats = JSON.parse(savedStats);
@@ -54,7 +80,7 @@ const ArcadePage = ({ currentUser, onPointsUpdate }) => {
         });
       }
     }
-  }, [currentUser, isOnline]);
+  }, [currentUser, isOnline, isGuest]);
 
   // Widgets de Estadísticas del Usuario
   const StatsWidgets = () => (
@@ -144,9 +170,9 @@ const ArcadePage = ({ currentUser, onPointsUpdate }) => {
           <div className="text-right">
             <p className="text-xs text-green-300">Modo</p>
             <p className="text-xs text-green-300 mt-1">
-              {isOnline ? '🟢 Online' : '🟡 Offline'}
+              {isGuest ? '👤 Invitado' : isOnline ? '🟢 Online' : '🟡 Offline'}
             </p>
-            {isOnline && (
+            {isOnline && !isGuest && (
               <button 
                 onClick={loadUserStats}
                 className="text-xs text-green-400 hover:text-green-300 mt-1 flex items-center"
@@ -162,6 +188,8 @@ const ArcadePage = ({ currentUser, onPointsUpdate }) => {
 
   // Manejar actualización de estadísticas desde el juego
   const handleStatsUpdate = (newStats) => {
+    if (isGuest) return; // Invitados no pueden actualizar estadísticas
+    
     setUserStats(prev => {
       const updated = { ...prev, ...newStats };
       
@@ -174,7 +202,7 @@ const ArcadePage = ({ currentUser, onPointsUpdate }) => {
     });
 
     // Recargar estadísticas desde el backend después de un momento
-    if (isOnline) {
+    if (isOnline && !isGuest) {
       setTimeout(() => {
         loadUserStats();
       }, 1000);
@@ -187,52 +215,69 @@ const ArcadePage = ({ currentUser, onPointsUpdate }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Encabezado */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-foreground">Arcade: Asteroids Retro</h1>
-        <p className="text-muted-foreground mt-2">
-          Destruye asteroides, sobrevive y gana monedas. Cada partida consume 1 vida.
-        </p>
-      </div>
-
-      {/* Widgets de Estadísticas */}
-      <StatsWidgets />
-
-      {/* Juego */}
-      <div className="flex justify-center">
-        <AsteroidsGame 
-          currentUser={currentUser}
-          onPointsUpdate={onPointsUpdate}
-          userStats={userStats}
-          onStatsUpdate={handleStatsUpdate}
-          onRefreshStats={loadUserStats} // Pasar función para refrescar
-        />
-      </div>
-
-      {/* Información del Juego */}
-      <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 max-w-4xl mx-auto">
-        <h3 className="text-lg font-semibold text-white mb-2">🎮 Cómo Jugar</h3>
-        <ul className="text-slate-300 text-sm space-y-1">
-          <li>• <strong>Flechas ← →</strong> para girar la nave</li>
-          <li>• <strong>Flecha ↑</strong> para acelerar</li>
-          <li>• <strong>Espacio</strong> para disparar</li>
-          <li>• <strong>Destruye asteroides</strong> para ganar puntos</li>
-          <li>• <strong>100 puntos = 1 moneda</strong></li>
-          <li>• <strong>3 vidas por partida</strong> - ¡Cuidado con los asteroides!</li>
-        </ul>
-      </div>
-
-      {/* Información adicional */}
-      {!isOnline && (
-        <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-4 text-center">
-          <p className="text-yellow-200">
-            <strong>Modo Prueba:</strong> Tu progreso se guarda localmente. 
-            {userStats.vidas <= 0 && ' Recarga la página para obtener más vidas de prueba.'}
+    <AuthGuard 
+      currentUser={currentUser} 
+      action="jugar al minijuego"
+      showAfterSeconds={5}
+    >
+      <div className="space-y-6">
+        {/* Encabezado */}
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-foreground">Arcade: Asteroids Retro</h1>
+          <p className="text-muted-foreground mt-2">
+            {isGuest 
+              ? "Inicia sesión para jugar, ganar monedas y competir en el ranking." 
+              : "Destruye asteroides, sobrevive y gana monedas. Cada partida consume 1 vida."}
           </p>
+          {isGuest && (
+            <div className="mt-4 bg-amber-500/20 border border-amber-500/30 rounded-lg p-3 inline-block">
+              <p className="text-amber-200 text-sm">
+                <strong>⚠️ Modo Invitado:</strong> Solo puedes ver el juego en modo demostración.
+              </p>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+
+        {/* Widgets de Estadísticas */}
+        <StatsWidgets />
+
+        {/* Juego */}
+        <div className="flex justify-center">
+          <AsteroidsGame 
+            currentUser={currentUser}
+            onPointsUpdate={onPointsUpdate}
+            userStats={userStats}
+            onStatsUpdate={handleStatsUpdate}
+            onRefreshStats={loadUserStats}
+          />
+        </div>
+
+        {/* Información del Juego */}
+        {!isGuest && (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 max-w-4xl mx-auto">
+            <h3 className="text-lg font-semibold text-white mb-2">🎮 Cómo Jugar</h3>
+            <ul className="text-slate-300 text-sm space-y-1">
+              <li>• <strong>Flechas ← →</strong> para girar la nave</li>
+              <li>• <strong>Flecha ↑</strong> para acelerar</li>
+              <li>• <strong>Espacio</strong> para disparar</li>
+              <li>• <strong>Destruye asteroides</strong> para ganar puntos</li>
+              <li>• <strong>100 puntos = 1 moneda</strong></li>
+              <li>• <strong>3 vidas por partida</strong> - ¡Cuidado con los asteroides!</li>
+            </ul>
+          </div>
+        )}
+
+        {/* Información adicional */}
+        {!isOnline && !isGuest && (
+          <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-4 text-center">
+            <p className="text-yellow-200">
+              <strong>Modo Prueba:</strong> Tu progreso se guarda localmente. 
+              {userStats.vidas <= 0 && ' Recarga la página para obtener más vidas de prueba.'}
+            </p>
+          </div>
+        )}
+      </div>
+    </AuthGuard>
   );
 };
 

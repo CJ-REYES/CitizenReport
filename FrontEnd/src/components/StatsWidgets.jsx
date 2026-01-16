@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Map, BarChart, Clock, CheckCircle, AlertTriangle, Construction, TrafficCone, RefreshCw } from 'lucide-react';
+import { Map, BarChart, Clock, CheckCircle, AlertTriangle, Construction, TrafficCone, RefreshCw, TrendingUp } from 'lucide-react';
 import { getColoniaMasAlumbrado, getColoniaMasBaches, getColoniaMasDanos } from '../services/reportService';
 
 const StatsWidgets = () => {
@@ -17,14 +17,11 @@ const StatsWidgets = () => {
         try {
             setRefreshing(true);
             
-            // Realizar las tres llamadas en paralelo
             const [alumbradoData, bachesData, danosData] = await Promise.all([
                 getColoniaMasAlumbrado(),
                 getColoniaMasBaches(),
                 getColoniaMasDanos()
             ]);
-
-            console.log('Datos recibidos:', { alumbradoData, bachesData, danosData });
 
             setStats({
                 coloniaAlumbrado: {
@@ -44,7 +41,6 @@ const StatsWidgets = () => {
             setLastUpdate(new Date());
         } catch (err) {
             console.error('Error fetching stats:', err);
-            // En caso de error, mantener los datos anteriores pero marcar error
             setStats(prev => ({
                 coloniaAlumbrado: { ...prev.coloniaAlumbrado, nombre: 'Error al cargar' },
                 coloniaBaches: { ...prev.coloniaBaches, nombre: 'Error al cargar' },
@@ -56,19 +52,12 @@ const StatsWidgets = () => {
         }
     };
 
-    // Efecto para cargar inicialmente y establecer el intervalo
     useEffect(() => {
-        // Cargar datos inmediatamente
         fetchStats();
-
-        // Establecer intervalo para actualizar cada 30 segundos
-        const intervalId = setInterval(fetchStats, 30000); // 30 segundos
-
-        // Limpiar intervalo al desmontar el componente
+        const intervalId = setInterval(fetchStats, 30000);
         return () => clearInterval(intervalId);
     }, []);
 
-    // Función para formatear la hora de última actualización
     const formatLastUpdate = (date) => {
         return date.toLocaleTimeString('es-MX', { 
             hour: '2-digit', 
@@ -77,180 +66,134 @@ const StatsWidgets = () => {
         });
     };
 
+    const widgetVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: (i) => ({
+            opacity: 1,
+            y: 0,
+            transition: {
+                delay: i * 0.1,
+                duration: 0.5,
+                ease: "easeOut"
+            }
+        })
+    };
+
     if (loading) {
         return (
-            <motion.div 
-                initial={{ y: 20, opacity: 0 }} 
-                animate={{ y: 0, opacity: 1 }} 
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-6"
-            >
-                {[1, 2, 3].map(i => (
-                    <div key={i} className="bg-card rounded-xl p-6 border border-border shadow-md">
-                        <div className="animate-pulse">
-                            <div className="h-6 bg-gray-300 rounded w-3/4 mb-4"></div>
-                            <div className="h-8 bg-gray-300 rounded w-1/2 mb-2"></div>
-                            <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                    <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="bg-gradient-to-br from-card to-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border shadow-lg"
+                    >
+                        <div className="animate-pulse space-y-4">
+                            <div className="h-6 bg-gray-700/30 rounded w-3/4"></div>
+                            <div className="h-10 bg-gray-700/30 rounded w-1/2"></div>
+                            <div className="h-4 bg-gray-700/30 rounded w-5/6"></div>
                         </div>
-                    </div>
+                    </motion.div>
                 ))}
-            </motion.div>
+            </div>
         );
     }
 
     return (
-        <div className="space-y-4">
-            {/* Header con información de actualización */}
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex justify-between items-center px-2"
-            >
-                <div className="text-sm text-muted-foreground">
-                    Actualizado: {formatLastUpdate(lastUpdate)}
-                </div>
-                <button
-                    onClick={fetchStats}
-                    disabled={refreshing}
-                    className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
-                >
-                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                    {refreshing ? 'Actualizando...' : 'Actualizar ahora'}
-                </button>
-            </motion.div>
+        <div className="space-y-6">
+         
 
-            {/* Widgets */}
-            <motion.div 
-                initial={{ y: 20, opacity: 0 }} 
-                animate={{ y: 0, opacity: 1 }} 
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-6"
-            >
-                {/* TARJETA 1: Colonia con más fallas en alumbrado público */}
-                <motion.div 
-                    whileHover={{ scale: 1.02, y: -5 }} 
-                    className="bg-card rounded-xl p-6 border border-border shadow-md text-center relative"
-                >
-                    {refreshing && (
-                        <div className="absolute top-2 right-2">
-                            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                    {
+                        key: 'alumbrado',
+                        title: 'Alumbrado Público',
+                        icon: AlertTriangle,
+                        color: 'from-yellow-500/20 to-yellow-600/20',
+                        borderColor: 'border-yellow-500/30',
+                        textColor: 'text-yellow-400',
+                        data: stats.coloniaAlumbrado
+                    },
+                    {
+                        key: 'baches',
+                        title: 'Baches en Calles',
+                        icon: Construction,
+                        color: 'from-orange-500/20 to-orange-600/20',
+                        borderColor: 'border-orange-500/30',
+                        textColor: 'text-orange-400',
+                        data: stats.coloniaBaches
+                    },
+                    {
+                        key: 'danos',
+                        title: 'Daños Urbanos',
+                        icon: TrafficCone,
+                        color: 'from-red-500/20 to-red-600/20',
+                        borderColor: 'border-red-500/30',
+                        textColor: 'text-red-400',
+                        data: stats.coloniaDanos
+                    }
+                ].map((widget, index) => (
+                    <motion.div
+                        key={widget.key}
+                        custom={index}
+                        variants={widgetVariants}
+                        initial="hidden"
+                        animate="visible"
+                        whileHover={{ 
+                            y: -5,
+                            transition: { duration: 0.2 }
+                        }}
+                        className={`bg-gradient-to-br from-card to-card/80 backdrop-blur-sm rounded-2xl p-6 border ${widget.borderColor} shadow-lg relative overflow-hidden`}
+                    >
+                        {/* Efecto de fondo sutil */}
+                        <div className={`absolute -top-20 -right-20 w-40 h-40 ${widget.color} rounded-full blur-3xl opacity-30`}></div>
+                        
+                        {refreshing && (
+                            <div className="absolute top-4 right-4">
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                >
+                                    <RefreshCw className="w-5 h-5 text-primary" />
+                                </motion.div>
+                            </div>
+                        )}
+                        
+                        <div className="relative">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`p-3 rounded-xl ${widget.color} border ${widget.borderColor}`}>
+                                    <widget.icon className={`w-6 h-6 ${widget.textColor}`} />
+                                </div>
+                                <h3 className="text-lg font-bold text-foreground">{widget.title}</h3>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className={`text-4xl md:text-5xl font-bold ${widget.textColor} mb-2`}>
+                                        {widget.data.total}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        reportes registrados
+                                    </p>
+                                </div>
+
+                                <div className={`p-4 rounded-xl ${widget.color} border ${widget.borderColor}`}>
+                                    <p className="text-xs text-muted-foreground mb-1">Colonia con más reportes</p>
+                                    <p className={`text-lg font-semibold ${widget.data.nombre === 'Sin reportes' || widget.data.nombre === 'Error al cargar' ? 'text-gray-400' : 'text-foreground'}`}>
+                                        {widget.data.nombre === 'Colonia no especificada' 
+                                            ? '📍 Sin ubicación específica' 
+                                            : widget.data.nombre}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                    )}
-                    
-                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 justify-center">
-                        <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                        Colonia con más Fallas en Alumbrado
-                    </h3>
-
-                    <div className="mb-4">
-                        <p className="text-4xl font-extrabold text-yellow-500">
-                            {stats.coloniaAlumbrado.total}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            reportes de alumbrado
-                        </p>
-                    </div>
-
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <p className={`text-lg font-semibold ${
-                            stats.coloniaAlumbrado.nombre === 'Sin reportes' || stats.coloniaAlumbrado.nombre === 'Error al cargar'
-                                ? 'text-gray-500'
-                                : stats.coloniaAlumbrado.nombre === 'Colonia no especificada'
-                                ? 'text-orange-600'
-                                : 'text-yellow-700'
-                        }`}>
-                            {stats.coloniaAlumbrado.nombre === 'Colonia no especificada' 
-                                ? 'Reportes sin colonia asignada' 
-                                : stats.coloniaAlumbrado.nombre}
-                        </p>
-                    </div>
-                </motion.div>
-
-                {/* TARJETA 2: Colonia con más baches */}
-                <motion.div 
-                    whileHover={{ scale: 1.02, y: -5 }} 
-                    className="bg-card rounded-xl p-6 border border-border shadow-md text-center relative"
-                >
-                    {refreshing && (
-                        <div className="absolute top-2 right-2">
-                            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
-                        </div>
-                    )}
-                    
-                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 justify-center">
-                        <Construction className="w-5 h-5 text-orange-500" />
-                        Colonia con más Baches
-                    </h3>
-
-                    <div className="mb-4">
-                        <p className="text-4xl font-extrabold text-orange-500">
-                            {stats.coloniaBaches.total}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            reportes de baches
-                        </p>
-                    </div>
-
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                        <p className={`text-lg font-semibold ${
-                            stats.coloniaBaches.nombre === 'Sin reportes' || stats.coloniaBaches.nombre === 'Error al cargar'
-                                ? 'text-gray-500'
-                                : stats.coloniaBaches.nombre === 'Colonia no especificada'
-                                ? 'text-orange-600'
-                                : 'text-orange-700'
-                        }`}>
-                            {stats.coloniaBaches.nombre === 'Colonia no especificada' 
-                                ? 'Reportes sin colonia asignada' 
-                                : stats.coloniaBaches.nombre}
-                        </p>
-                    </div>
-                </motion.div>
-
-                {/* TARJETA 3: Colonia con más daños (reportes en general) */}
-                <motion.div 
-                    whileHover={{ scale: 1.02, y: -5 }} 
-                    className="bg-card rounded-xl p-6 border border-border shadow-md text-center relative"
-                >
-                    {refreshing && (
-                        <div className="absolute top-2 right-2">
-                            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
-                        </div>
-                    )}
-                    
-                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2 justify-center">
-                        <TrafficCone className="w-5 h-5 text-red-500" />
-                        Colonia con más Daños
-                    </h3>
-
-                    <div className="mb-4">
-                        <p className="text-4xl font-extrabold text-red-500">
-                            {stats.coloniaDanos.total}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            reportes totales
-                        </p>
-                    </div>
-
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className={`text-lg font-semibold ${
-                            stats.coloniaDanos.nombre === 'Sin reportes' || stats.coloniaDanos.nombre === 'Error al cargar'
-                                ? 'text-gray-500'
-                                : stats.coloniaDanos.nombre === 'Colonia no especificada'
-                                ? 'text-orange-600'
-                                : 'text-red-700'
-                        }`}>
-                            {stats.coloniaDanos.nombre === 'Colonia no especificada' 
-                                ? 'Reportes sin colonia asignada' 
-                                : stats.coloniaDanos.nombre}
-                        </p>
-                    </div>
-                </motion.div>
-            </motion.div>
-
-            {/* Indicador de actualización automática */}
-            <div className="text-xs text-center text-muted-foreground">
-                Los datos se actualizan automáticamente cada 30 segundos
+                    </motion.div>
+                ))}
             </div>
+
+            
         </div>
     );
 };

@@ -1,33 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X, Map, Gamepad2, LayoutDashboard, Shield, User, Award, LogOut, Sun, Moon, LogIn, UserPlus } from 'lucide-react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Menu, X, Map, Gamepad2, LayoutDashboard, Shield, User, Award, LogOut, 
+  Sun, Moon, LogIn, UserPlus, Bell, Settings, Trophy, Home, MapPin,
+  ChevronDown, ChevronRight, Building, Users, BarChart3, Target
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { logout } from '../services/authService';
 import { checkIfGuest, getStoredUser } from '../utils/authUtils';
 
 const Navigation = ({ currentUser, onLogout, children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   
-  // Estado para el tema
   const [theme, setTheme] = useState(() => {
-    const savedTheme = localStorage.getItem('theme');
-    return savedTheme || 'light';
+    return localStorage.getItem('theme') || 'light';
   });
 
-  // Estado local para el usuario
   const [localUser, setLocalUser] = useState(() => {
     return currentUser || getStoredUser();
   });
 
-  // Sincronizar cuando cambia currentUser de las props
   useEffect(() => {
     if (currentUser) {
       setLocalUser(currentUser);
     }
   }, [currentUser]);
 
-  // Aplicar tema
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -38,346 +41,515 @@ const Navigation = ({ currentUser, onLogout, children }) => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Verificar si es invitado
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const isGuest = checkIfGuest(localUser);
 
-  // Toggle del tema
   const toggleTheme = () => {
     setTheme(currentTheme => (currentTheme === 'dark' ? 'light' : 'dark'));
   };
 
-  const ThemeToggle = ({ isMobile = false }) => (
-    <Button
-      variant="ghost"
-      size={isMobile ? "default" : "icon"}
+  const ThemeToggle = () => (
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       onClick={toggleTheme}
-      className={`text-foreground dark:text-muted-foreground hover:bg-muted dark:hover:bg-accent/50 transition-colors ${
-        isMobile ? 'w-full justify-start mb-2' : ''
-      }`}
+      className="p-2 rounded-full bg-gradient-to-br from-gray-100 to-white dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
       aria-label="Toggle theme"
     >
       {theme === 'light' ? (
-        <Moon className="w-5 h-5" />
+        <Moon className="w-5 h-5 text-gray-600" />
       ) : (
-        <Sun className="w-5 h-5" />
+        <Sun className="w-5 h-5 text-yellow-300" />
       )}
-      {isMobile && <span>{theme === 'light' ? 'Tema Oscuro' : 'Tema Claro'}</span>}
-    </Button>
+    </motion.button>
   );
 
-  // Definir items del menú
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { id: 'map', label: 'Mapa', icon: Map, path: '/map' },
-    { id: 'game', label: 'Arcade', icon: Gamepad2, path: '/arcade' },
-    { id: 'leaderboard', label: 'Ranking', icon: Award, path: '/leaderboard' },
+    { 
+      id: 'dashboard', 
+      label: 'Dashboard', 
+      icon: LayoutDashboard, 
+      path: '/',
+      description: 'Resumen de actividad'
+    },
+    { 
+      id: 'map', 
+      label: 'Mapa Interactivo', 
+      icon: MapPin, 
+      path: '/map',
+      description: 'Reportes en tiempo real'
+    },
+    { 
+      id: 'game', 
+      label: 'Arcade', 
+      icon: Gamepad2, 
+      path: '/arcade',
+      description: 'Minijuegos y recompensas'
+    },
+    { 
+      id: 'leaderboard', 
+      label: 'Ranking Global', 
+      icon: Trophy, 
+      path: '/leaderboard',
+      description: 'Posiciones y logros'
+    },
   ];
 
   if (localUser?.role === 'admin') {
-    menuItems.push({ id: 'admin', label: 'Admin', icon: Shield, path: '/admin' });
+    menuItems.push({ 
+      id: 'admin', 
+      label: 'Administración', 
+      icon: Shield, 
+      path: '/admin',
+      description: 'Panel de control'
+    });
   }
 
-  // Función completa para limpiar datos de invitado
   const cleanGuestSession = () => {
-    console.log('Limpiando sesión de invitado...');
-    
-    // 1. Eliminar datos de autenticación
     localStorage.removeItem('currentUser');
     localStorage.removeItem('token');
     localStorage.removeItem('guestSession');
-    
-    // 2. Mantener progreso del juego (opcional)
-    // localStorage.removeItem('asteroidsOfflineStats');
-    
-    // 3. Forzar recarga del estado
     setLocalUser({});
-    
-    // 4. Notificar al componente padre si existe
-    if (onLogout) {
-      onLogout();
-    }
-    
-    console.log('Sesión de invitado limpiada');
+    if (onLogout) onLogout();
   };
 
-  // Redirección a login - VERSIÓN SEGURA
   const handleLoginRedirect = () => {
-    console.log('Redirigiendo a login...');
-    
-    // Limpiar sesión de invitado
     cleanGuestSession();
-    
-    // Usar window.location.href para forzar la recarga completa
-    // Esto evita problemas con React Router
-    setTimeout(() => {
-      window.location.href = '/login';
-    }, 100);
-    
-    // También intentar con navigate como fallback
-    setTimeout(() => {
-      navigate('/login');
-    }, 50);
+    setTimeout(() => navigate('/login'), 100);
   };
 
-  // Redirección a registro
   const handleRegisterRedirect = () => {
     cleanGuestSession();
-    
-    setTimeout(() => {
-      window.location.href = '/register';
-    }, 100);
-    
-    setTimeout(() => {
-      navigate('/register');
-    }, 50);
+    setTimeout(() => navigate('/login?tab=register'), 100);
   };
 
-  // Cerrar sesión para usuarios normales
   const handleLogoutClick = () => {
-    // Ejecutar logout del servicio
     logout();
-    
-    // Limpiar estado local
     setLocalUser({});
-    
-    // Notificar al componente padre
-    if (onLogout) {
-      onLogout();
-    }
-    
-    // Redirigir a info
+    if (onLogout) onLogout();
     navigate('/info');
-    
-    // Forzar recarga para asegurar limpieza
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
   };
 
-  // Obtener nombre del usuario
   const getUserName = () => {
     return localUser?.name || localUser?.nombreUser || localUser?.username || 'Usuario';
   };
 
+  const getUserInitials = () => {
+    const name = getUserName();
+    return name.charAt(0).toUpperCase();
+  };
+
+  const getUserPoints = () => {
+    return localUser?.puntos || localUser?.points || 0;
+  };
+
+  const getUserRank = () => {
+    return localUser?.rango || 'Ciudadano Novato';
+  };
+
   return (
-    <div className="min-h-screen bg-background dark:bg-slate-900">
-      {/* ===== VISTA ESCRITORIO ===== */}
-      <aside className="hidden lg:flex flex-col w-64 fixed inset-y-0 z-50 bg-secondary dark:bg-secondary border-r border-border">
-        <div className="h-16 flex items-center px-6 border-b border-border">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mr-3">
-            <Map className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-secondary-foreground dark:text-foreground">CiudadApp</h1>
-            <p className="text-[10px] text-muted-foreground">Mejora tu ciudad</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {menuItems.map(item => (
-            <NavLink key={item.id} to={item.path}>
-              {({ isActive }) => (
-                <Button
-                  variant={isActive ? "default" : "ghost"}
-                  className={`w-full justify-start flex items-center space-x-3 ${
-                    isActive 
-                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
-                    : 'text-secondary-foreground dark:text-muted-foreground hover:bg-secondary/50 dark:hover:bg-accent/50 hover:text-primary dark:hover:text-foreground'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span>{item.label}</span>
-                </Button>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-
-      <header className="hidden lg:flex items-center justify-end h-16 fixed top-0 right-0 left-64 z-40 bg-card/95 dark:bg-card/95 backdrop-blur border-b border-border px-8">
-        <div className="flex items-center space-x-4">
-          <ThemeToggle />
-          
-          <div className="h-6 w-px bg-border mx-2" />
-          
-          {/* Si es invitado */}
-          {isGuest ? (
-            <>
-              <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
-                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
-                  <User className="w-4 h-4 text-amber-500" />
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/10">
+      {/* Desktop Navigation */}
+      <motion.aside 
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.5, type: "spring" }}
+        className="hidden lg:flex flex-col w-72 fixed inset-y-0 z-50"
+      >
+        {/* Sidebar */}
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-card to-card/95 backdrop-blur-sm border-r border-border shadow-2xl">
+          {/* Logo */}
+          <motion.div 
+            whileHover={{ scale: 1.02 }}
+            className="p-6 border-b border-border"
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg">
+                  <Building className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-right">
-                  <p className="font-medium">Modo Invitado</p>
-                  <p className="text-xs text-muted-foreground">Funciones limitadas</p>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-card animate-pulse"></div>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  CiudadApp
+                </h1>
+                <p className="text-xs text-muted-foreground">Transformando ciudades juntos</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* User Info */}
+          <div className="p-6 border-b border-border">
+            {isGuest ? (
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                    <User className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground">Modo Invitado</p>
+                    <p className="text-sm text-muted-foreground">Funciones limitadas</p>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="h-6 w-px bg-border mx-2" />
-              
-              <Button 
-                onClick={handleLoginRedirect}
-                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+              </motion.div>
+            ) : (
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-card to-card/80 border border-border rounded-xl p-4"
               >
-                <LogIn className="w-4 h-4 mr-2" />
-                Iniciar Sesión
-              </Button>
-            </>
-          ) : (
-            <>
-              <NavLink to="/profile">
-                {({ isActive }) => (
-                  <Button 
-                    variant="ghost" 
-                    className={`flex items-center space-x-2 ${
-                      isActive 
-                        ? 'bg-secondary text-secondary-foreground dark:bg-secondary/50 dark:text-foreground' 
-                        : 'text-foreground dark:text-muted-foreground hover:bg-secondary dark:hover:bg-secondary/50'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-border flex items-center justify-center border border-border">
-                      <User className="w-4 h-4 text-muted-foreground" />
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg">
+                      {getUserInitials()}
                     </div>
-                    <div className="text-right hidden xl:block">
-                      <p className="text-sm font-medium text-foreground leading-none">{getUserName()}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Ver Perfil</p>
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-card flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
                     </div>
-                  </Button>
-                )}
-              </NavLink>
-
-              <div className="h-6 w-px bg-border mx-2" />
-
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={handleLogoutClick}
-                className="flex items-center gap-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Salir</span>
-              </Button>
-            </>
-          )}
-        </div>
-      </header>
-
-      {/* ===== VISTA MÓVIL ===== */}
-      <header className="lg:hidden bg-card dark:bg-card border-b border-border sticky top-0 z-50">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                <Map className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-lg font-bold text-foreground">CiudadApp</h1>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <ThemeToggle isMobile={false} />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-muted-foreground hover:bg-muted"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </Button>
-            </div>
-          </div>
-
-          {mobileMenuOpen && (
-            <nav className="mt-4 pb-4 space-y-2 animate-in slide-in-from-top-2">
-              {menuItems.map(item => (
-                <NavLink
-                  key={item.id}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block"
-                >
-                  {({ isActive }) => (
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-foreground truncate">{getUserName()}</p>
+                    <p className="text-sm text-muted-foreground">{getUserRank()}</p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-yellow-500" />
+                      <span className="text-sm font-medium">{getUserPoints()} puntos</span>
+                    </div>
                     <Button
-                      variant={isActive ? "default" : "ghost"}
-                      className={`w-full justify-start flex items-center space-x-2 ${
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                      className="h-8"
+                    >
+                      <NavLink to="/profile">
+                        <User className="w-4 h-4" />
+                      </NavLink>
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Navigation Menu */}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            {menuItems.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <NavLink to={item.path}>
+                  {({ isActive }) => (
+                    <motion.div
+                      whileHover={{ x: 5 }}
+                      className={`p-3 rounded-xl flex items-center gap-3 transition-all ${
                         isActive 
-                        ? 'bg-primary hover:bg-primary/90 text-primary-foreground' 
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          ? 'bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30 shadow-lg' 
+                          : 'hover:bg-muted/50 border border-transparent'
                       }`}
                     >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </Button>
+                      <div className={`p-2 rounded-lg ${
+                        isActive 
+                          ? 'bg-gradient-to-br from-primary to-secondary' 
+                          : 'bg-muted'
+                      }`}>
+                        <item.icon className={`w-5 h-5 ${
+                          isActive ? 'text-white' : 'text-muted-foreground'
+                        }`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-medium ${
+                          isActive ? 'text-foreground' : 'text-muted-foreground'
+                        }`}>
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.description}
+                        </p>
+                      </div>
+                      {isActive && (
+                        <ChevronRight className="w-4 h-4 text-primary" />
+                      )}
+                    </motion.div>
                   )}
                 </NavLink>
-              ))}
+              </motion.div>
+            ))}
+          </nav>
+
+          {/* Bottom Actions */}
+          <div className="p-4 border-t border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <ThemeToggle />
               
-              <div className="border-t border-border my-2 pt-2">
-                {isGuest ? (
-                  <>
-                    <div className="mb-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center mr-2">
-                          <User className="w-4 h-4 text-amber-500" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Modo Invitado</p>
-                          <p className="text-xs text-muted-foreground">Funciones limitadas</p>
+              {isGuest ? (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleLoginRedirect}
+                    size="sm"
+                    className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Ingresar
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleLogoutClick}
+                  className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Salir
+                </Button>
+              )}
+            </div>
+            
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                Proyecto UTC • Versión 1.0
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.aside>
+
+      {/* Mobile Header */}
+      <motion.header
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className={`lg:hidden sticky top-0 z-50 backdrop-blur-lg transition-all ${
+          scrolled ? 'bg-card/95 shadow-lg' : 'bg-card/80'
+        }`}
+      >
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <motion.div
+                whileHover={{ rotate: 180 }}
+                transition={{ duration: 0.5 }}
+                className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg"
+              >
+                <Building className="w-5 h-5 text-white" />
+              </motion.div>
+              <div>
+                <h1 className="text-lg font-bold text-foreground">CiudadApp</h1>
+                <p className="text-xs text-muted-foreground">Versión móvil</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-lg bg-gradient-to-br from-gray-100 to-white dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700"
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-4 overflow-hidden"
+              >
+                <div className="bg-gradient-to-b from-card to-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-2xl p-4">
+                  {/* User Info */}
+                  <div className="mb-6">
+                    {isGuest ? (
+                      <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                            <User className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-foreground">Modo Invitado</p>
+                            <p className="text-sm text-muted-foreground">Funciones limitadas</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <Button 
-                      onClick={handleLoginRedirect}
-                      variant="default" 
-                      className="w-full mb-2 bg-gradient-to-r from-amber-500 to-orange-500"
-                    >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Iniciar Sesión
-                    </Button>
-                    
-                    <Button 
-                      variant="outline"
-                      onClick={handleRegisterRedirect}
-                      className="w-full"
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Crear Cuenta
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <NavLink 
-                      to="/profile" 
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block mb-2"
-                    >
-                      <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:bg-muted">
-                        <User className="w-4 h-4 mr-2" />
-                        Perfil
-                      </Button>
-                    </NavLink>
+                    ) : (
+                      <div className="bg-gradient-to-br from-card to-card/80 border border-border rounded-xl p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg">
+                            {getUserInitials()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-foreground">{getUserName()}</p>
+                            <p className="text-sm text-muted-foreground">{getUserRank()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-                    <Button 
-                      variant="destructive" 
-                      onClick={handleLogoutClick}
-                      className="w-full flex items-center justify-center gap-2"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Salir
-                    </Button>
-                  </>
-                )}
-              </div>
-            </nav>
-          )}
+                  {/* Navigation */}
+                  <nav className="space-y-2 mb-6">
+                    {menuItems.map((item) => (
+                      <NavLink
+                        key={item.id}
+                        to={item.path}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {({ isActive }) => (
+                          <motion.div
+                            whileTap={{ scale: 0.98 }}
+                            className={`p-3 rounded-xl flex items-center gap-3 ${
+                              isActive 
+                                ? 'bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30' 
+                                : 'hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className={`p-2 rounded-lg ${
+                              isActive 
+                                ? 'bg-gradient-to-br from-primary to-secondary' 
+                                : 'bg-muted'
+                            }`}>
+                              <item.icon className={`w-5 h-5 ${
+                                isActive ? 'text-white' : 'text-muted-foreground'
+                              }`} />
+                            </div>
+                            <div className="flex-1">
+                              <p className={`font-medium ${
+                                isActive ? 'text-foreground' : 'text-muted-foreground'
+                              }`}>
+                                {item.label}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.description}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </NavLink>
+                    ))}
+                  </nav>
+
+                  {/* Actions */}
+                  <div className="space-y-3">
+                    {isGuest ? (
+                      <>
+                        <Button
+                          onClick={() => {
+                            handleLoginRedirect();
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
+                        >
+                          <LogIn className="w-5 h-5 mr-2" />
+                          Iniciar Sesión
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            handleRegisterRedirect();
+                            setMobileMenuOpen(false);
+                          }}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <UserPlus className="w-5 h-5 mr-2" />
+                          Crear Cuenta
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <NavLink to="/profile" onClick={() => setMobileMenuOpen(false)}>
+                          <Button variant="outline" className="w-full">
+                            <User className="w-5 h-5 mr-2" />
+                            Mi Perfil
+                          </Button>
+                        </NavLink>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            handleLogoutClick();
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
+                        >
+                          <LogOut className="w-5 h-5 mr-2" />
+                          Cerrar Sesión
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </header>
+      </motion.header>
 
-      <main className="lg:pl-64 lg:pt-16 min-h-screen transition-all duration-300">
-        <div className="container mx-auto p-4 lg:p-8">
+      {/* Main Content */}
+      <main className="lg:pl-72 transition-all duration-300">
+        <div className="container mx-auto p-4 lg:p-6">
+          {/* Breadcrumb */}
+          {location.pathname !== '/' && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6"
+            >
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <NavLink to="/" className="hover:text-foreground transition-colors">
+                  <Home className="w-4 h-4" />
+                </NavLink>
+                <ChevronRight className="w-3 h-3" />
+                <span className="text-foreground font-medium">
+                  {menuItems.find(item => item.path === location.pathname)?.label || 
+                   location.pathname.split('/').pop()}
+                </span>
+              </div>
+            </motion.div>
+          )}
+          
           {children}
         </div>
       </main>
+
+      {/* Floating Action Button (Mobile only) */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="lg:hidden fixed bottom-6 right-6 z-40"
+      >
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => navigate('/map')}
+          className="p-4 bg-gradient-to-br from-primary to-secondary rounded-full shadow-2xl"
+        >
+          <MapPin className="w-6 h-6 text-white" />
+        </motion.button>
+      </motion.div>
     </div>
   );
 };

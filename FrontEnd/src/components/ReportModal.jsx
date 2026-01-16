@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
   DialogContent,
@@ -11,17 +12,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Camera, MapPin, Send, FileText, Loader2, MapPinned } from 'lucide-react'; 
+import { 
+  Camera, 
+  MapPin, 
+  Send, 
+  FileText, 
+  Loader2, 
+  MapPinned,
+  X,
+  Upload,
+  Image as ImageIcon,
+  Compass
+} from 'lucide-react'; 
 import 'leaflet/dist/leaflet.css';
-
-// Importamos el servicio
 import { createReport } from '../services/reportService'; 
-
-// 🎯 NUEVA IMPORTACIÓN DE LA FUNCIÓN DE GEOCERCA
 import { findColoniaByLocation } from '../utils/geoUtils'; 
 
-
-// Componente Selector de Ubicación
 const LocationSelector = ({ onLocationSelect, selectedLocation }) => {
   useMapEvents({
     click(e) {
@@ -36,48 +42,45 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [type, setType] = useState('Bache');
-  // Nuevo estado para Colonia
   const [colonia, setColonia] = useState('');
   const [isDetectingColonia, setIsDetectingColonia] = useState(false);
-  
   const [photo, setPhoto] = useState(null); 
   const [photoFile, setPhotoFile] = useState(null); 
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1);
   const fileInputRef = useRef(null);
   const { toast } = useToast();
 
-  const reportTypes = ['Bache', 'Alumbrado', 'Basura', 'Vandalismo', 'Otro'];
-  
-  // Configuraciones de región (Candelaria)
-  const candelariaCenter = [18.186356, -91.041947]; 
-  const candelariaBounds = [
-      [18.136, -91.091], 
-      [18.236, -90.991]  
+  const reportTypes = [
+    { value: 'Bache', label: '🚧 Bache', color: 'text-orange-500' },
+    { value: 'Alumbrado', label: '💡 Alumbrado', color: 'text-yellow-500' },
+    { value: 'Basura', label: '🗑️ Basura', color: 'text-red-500' },
+    { value: 'Vandalismo', label: '🎨 Vandalismo', color: 'text-purple-500' },
+    { value: 'Otro', label: '🔧 Otro', color: 'text-gray-500' }
   ];
 
-  // --- EFECTO: DETECTAR COLONIA AL CAMBIAR UBICACIÓN (Lógica con Geocerca) ---
+  const candelariaCenter = [18.186356, -91.041947]; 
+  const candelariaBounds = [
+    [18.136, -91.091], 
+    [18.236, -90.991]  
+  ];
+
   useEffect(() => {
     const detectColonia = () => {
-        if (!location) return;
-
-        setIsDetectingColonia(true);
-        // Limpiamos el valor mientras detecta
-        setColonia(''); 
-        
-        try {
-            // Usamos la función de geocerca local: findColoniaByLocation(location)
-            const detectedName = findColoniaByLocation(location);
-
-            // Solo se establece la colonia si se detecta un nombre. Si es null, queda vacío ('').
-            setColonia(detectedName || '');
-
-        } catch (error) {
-            console.error("Error detectando colonia con geocerca:", error);
-            setColonia('');
-        } finally {
-            setIsDetectingColonia(false);
-        }
+      if (!location) return;
+      setIsDetectingColonia(true);
+      setColonia('');
+      
+      try {
+        const detectedName = findColoniaByLocation(location);
+        setColonia(detectedName || '');
+      } catch (error) {
+        console.error("Error detectando colonia:", error);
+        setColonia('');
+      } finally {
+        setIsDetectingColonia(false);
+      }
     };
 
     detectColonia();
@@ -86,6 +89,15 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Archivo muy grande",
+          description: "La imagen no debe exceder 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhoto(reader.result); 
@@ -95,16 +107,23 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
     }
   };
 
+  const removePhoto = () => {
+    setPhoto(null);
+    setPhotoFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (loading) return;
 
-    // Validación: Se asegura que el campo de colonia NO esté vacío
     if (!description || !location || !colonia.trim()) {
       toast({
-        title: "Datos incompletos/inválidos",
-        description: "Asegúrate de tener ubicación, descripción y haber escrito la colonia.",
+        title: "Datos incompletos",
+        description: "Completa todos los campos requeridos",
         variant: "destructive"
       });
       return;
@@ -113,197 +132,420 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
     setLoading(true);
 
     try {
-        const storedToken = currentUser?.tokenJWT; 
-        const ciudadanoId = currentUser?.idUser; 
-        
-        if (!storedToken || !ciudadanoId) {
-            throw new Error("Error de sesión. Por favor, vuelve a iniciar sesión.");
-        }
+      const storedToken = currentUser?.tokenJWT; 
+      const ciudadanoId = currentUser?.idUser; 
+      
+      if (!storedToken || !ciudadanoId) {
+        throw new Error("Error de sesión. Por favor, vuelve a iniciar sesión.");
+      }
 
-        // --- PREPARACIÓN DE DATOS (FormData para el backend) ---
-        const formData = new FormData();
-        
-        formData.append('CiudadanoId', ciudadanoId);
-        formData.append('TipoIncidente', type);
-        formData.append('Colonia', colonia); // <--- Dato de Colonia
-        formData.append('DescripcionDetallada', description);
-        formData.append('Latitud', location.lat);
-        formData.append('Longitud', location.lng);
-        
-        if (photoFile) {
-            formData.append('ArchivoFoto', photoFile, photoFile.name); 
-        }
-        
-        // Llamada al servicio
-        await createReport(formData, storedToken); 
-        
-        const pointsEarned = 10; 
-        if (onPointsEarned) onPointsEarned(pointsEarned);
+      const formData = new FormData();
+      
+      formData.append('CiudadanoId', ciudadanoId);
+      formData.append('TipoIncidente', type);
+      formData.append('Colonia', colonia);
+      formData.append('DescripcionDetallada', description);
+      formData.append('Latitud', location.lat);
+      formData.append('Longitud', location.lng);
+      
+      if (photoFile) {
+        formData.append('ArchivoFoto', photoFile, photoFile.name); 
+      }
+      
+      await createReport(formData, storedToken); 
+      
+      const pointsEarned = 10; 
+      if (onPointsEarned) onPointsEarned(pointsEarned);
 
-        toast({
-          title: "¡Reporte enviado!",
-          description: `Ubicación: ${colonia}. Has ganado ${pointsEarned} puntos.`,
-        });
+      toast({
+        title: "¡Reporte enviado!",
+        description: `Ubicación: ${colonia}. Has ganado ${pointsEarned} puntos.`,
+      });
 
-        // Reset
-        setDescription('');
-        setType('Bache');
-        setColonia('');
-        setPhoto(null);
-        setPhotoFile(null); 
-        setLocation(null);
-        setOpen(false);
-        
-        if (onReportSubmit) onReportSubmit(); 
+      // Reset
+      setDescription('');
+      setType('Bache');
+      setColonia('');
+      setPhoto(null);
+      setPhotoFile(null); 
+      setLocation(null);
+      setStep(1);
+      setOpen(false);
+      
+      if (onReportSubmit) onReportSubmit(); 
 
     } catch (error) {
-        console.error("Error:", error);
-        toast({
-            title: "Error al enviar",
-            description: error.message || "Ocurrió un error.",
-            variant: "destructive"
-        });
+      console.error("Error:", error);
+      toast({
+        title: "Error al enviar",
+        description: error.message || "Ocurrió un error.",
+        variant: "destructive"
+      });
     } finally {
-        setLoading(false); 
+      setLoading(false); 
     }
+  };
+
+  const nextStep = () => {
+    if (step < 3) setStep(step + 1);
+  };
+
+  const prevStep = () => {
+    if (step > 1) setStep(step - 1);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-            <Button className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Nuevo Reporte
-            </Button>
+          <Button className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-sky-500 hover:from-teal-600 hover:to-sky-600 text-white border-0 shadow-lg">
+            <FileText className="w-4 h-4" />
+            Nuevo Reporte
+          </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background border-border">
-        <DialogHeader>
-          <DialogTitle className="text-2xl flex items-center gap-2 text-foreground">
-             <FileText className="w-6 h-6 text-teal-400" />
-             Nuevo Reporte
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Completa el formulario. La colonia se intentará detectar automáticamente al elegir la ubicación.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* TIPO DE REPORTE */}
-            <div>
-                <Label className="text-foreground mb-2 block">Categoría</Label>
-                <select 
-                    value={type} 
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-                >
-                    {reportTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-            </div>
-
-            {/* COLONIA DETECTADA */}
-            <div>
-                <Label className="text-foreground mb-2 block flex items-center gap-2">
-                    <MapPinned className="w-4 h-4" /> 
-                    Colonia / Barrio
-                </Label>
-                <div className="relative">
-                    <input 
-                        type="text"
-                        value={colonia}
-                        onChange={(e) => setColonia(e.target.value)}
-                        placeholder={location && !isDetectingColonia && !colonia.trim()
-                            ? "Colonia no detectada automáticamente. Escribe aquí." 
-                            : (location ? "Detectando..." : "Selecciona ubicación primero")
-                        }
-                        className="w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-                        disabled={isDetectingColonia} 
-                    />
-                    {isDetectingColonia && (
-                        <div className="absolute right-3 top-2">
-                            <Loader2 className="w-5 h-5 animate-spin text-teal-500" />
-                        </div>
-                    )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                    Se detectará automáticamente si el punto cae dentro de los límites definidos. Si no, escríbela.
-                </p>
-            </div>
-          </div>
-
-          {/* DESCRIPCIÓN */}
-          <div>
-            <Label htmlFor="description" className="text-foreground mb-2 block">Descripción</Label>
-            <textarea 
-                id="description" 
-                value={description} 
-                onChange={(e) => setDescription(e.target.value)} 
-                className="w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500 min-h-[80px]" 
-                placeholder="Describe el problema en detalle..." 
-            />
-          </div>
-
-          {/* MAPA */}
-          <div>
-            <Label className="text-foreground mb-2 block flex items-center gap-2"><MapPin className="w-4 h-4" />Ubicación (Toca el mapa)</Label>
-            <div className="h-[200px] rounded-lg overflow-hidden border border-input relative">
-              <MapContainer 
-                center={candelariaCenter} 
-                zoom={14} 
-                style={{ height: '100%', width: '100%' }}
-                maxBounds={candelariaBounds} 
-                maxBoundsViscosity={1.0} 
-                minZoom={12} 
-                maxZoom={18} 
-              >
-                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <LocationSelector onLocationSelect={setLocation} selectedLocation={location} />
-              </MapContainer>
-              {!location && <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-black/20 text-foreground text-xs font-semibold drop-shadow-md">Selecciona una ubicación</div>}
-            </div>
-            {location && (<p className="text-xs text-green-400 mt-1">✓ Coordenadas: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}</p>)}
-          </div>
-
-          {/* FOTO */}
-          <div>
-            <Label className="text-foreground mb-2 block">Foto (Opcional)</Label>
-            <div className="flex items-center gap-4">
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2">
-                <Camera className="w-4 h-4" />
-                {photo ? 'Cambiar' : 'Subir'}
-              </Button>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-              {photo && (
-                  <div className="relative h-12 w-12 rounded overflow-hidden border border-input">
-                      <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background border-border p-0">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col h-full"
+        >
+          {/* Header */}
+          <div className="sticky top-0 z-50 bg-background border-b border-border p-6">
+            <DialogHeader className="text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-sky-500 rounded-xl flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-white" />
                   </div>
-              )}
-            </div>
+                  <div>
+                    <DialogTitle className="text-2xl font-bold text-foreground">
+                      Nuevo Reporte
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      Reporta un problema en tu comunidad
+                    </DialogDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  {/* Progress Steps */}
+                  <div className="hidden md:flex items-center gap-2">
+                    {[1, 2, 3].map((stepNum) => (
+                      <React.Fragment key={stepNum}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          step === stepNum 
+                            ? 'bg-primary text-white' 
+                            : step > stepNum 
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {stepNum}
+                        </div>
+                        {stepNum < 3 && (
+                          <div className={`w-8 h-1 ${
+                            step > stepNum ? 'bg-emerald-500' : 'bg-muted'
+                          }`} />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
           </div>
 
-          {/* BOTÓN SUBMIT */}
-          <div className="pt-2">
-            <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-teal-500 to-sky-500 hover:from-teal-600 hover:to-sky-600 text-white border-0"
-                disabled={loading || isDetectingColonia} 
-            >
-                {loading ? (
-                    <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Enviando...
-                    </>
-                ) : (
-                    <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Enviar Reporte (+10 ptos)
-                    </>
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+            <div className="p-6">
+              <AnimatePresence mode="wait">
+                {step === 1 && (
+                  <motion.div
+                    key="step1"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-6"
+                  >
+                    {/* Tipo de Reporte */}
+                    <div>
+                      <Label className="text-foreground mb-3 block text-lg font-medium">
+                        ¿Qué tipo de problema es?
+                      </Label>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {reportTypes.map((reportType) => (
+                          <motion.button
+                            key={reportType.value}
+                            type="button"
+                            whileHover={{ y: -2 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setType(reportType.value)}
+                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                              type === reportType.value
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <span className={`text-2xl mb-2 ${reportType.color}`}>
+                              {reportType.label.charAt(0)}
+                            </span>
+                            <span className="text-sm font-medium text-foreground">
+                              {reportType.label.substring(2)}
+                            </span>
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Descripción */}
+                    <div>
+                      <Label className="text-foreground mb-3 block text-lg font-medium">
+                        Describe el problema
+                      </Label>
+                      <textarea 
+                        value={description} 
+                        onChange={(e) => setDescription(e.target.value)} 
+                        className="w-full px-4 py-3 bg-muted border border-input rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500 min-h-[120px]" 
+                        placeholder="Ejemplo: Hay un bache profundo en la esquina de la calle, cerca de la tienda..." 
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-6 border-t border-border">
+                      <Button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={!description.trim()}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        Continuar
+                        <Compass className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </motion.div>
                 )}
-            </Button>
+
+                {step === 2 && (
+                  <motion.div
+                    key="step2"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-6"
+                  >
+                    {/* Mapa */}
+                    <div>
+                      <Label className="text-foreground mb-3 block text-lg font-medium flex items-center gap-2">
+                        <MapPin className="w-5 h-5" />
+                        Selecciona la ubicación exacta
+                      </Label>
+                      <div className="h-[300px] rounded-xl overflow-hidden border border-input relative">
+                        <MapContainer 
+                          center={candelariaCenter} 
+                          zoom={14} 
+                          style={{ height: '100%', width: '100%' }}
+                          maxBounds={candelariaBounds} 
+                          maxBoundsViscosity={1.0} 
+                          minZoom={12} 
+                          maxZoom={18} 
+                        >
+                          <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                          <LocationSelector onLocationSelect={setLocation} selectedLocation={location} />
+                        </MapContainer>
+                        {!location && (
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-black/10 text-foreground text-sm font-medium">
+                            Haz clic en el mapa para seleccionar la ubicación
+                          </div>
+                        )}
+                      </div>
+                      {location && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="text-sm text-emerald-500 mt-2 flex items-center gap-2"
+                        >
+                          <MapPin className="w-4 h-4" />
+                          Coordenadas: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                        </motion.p>
+                      )}
+                    </div>
+
+                    {/* Colonia */}
+                    <div>
+                      <Label className="text-foreground mb-3 block text-lg font-medium flex items-center gap-2">
+                        <MapPinned className="w-5 h-5" />
+                        Colonia / Barrio
+                      </Label>
+                      <div className="relative">
+                        <input 
+                          type="text"
+                          value={colonia}
+                          onChange={(e) => setColonia(e.target.value)}
+                          placeholder={
+                            location 
+                              ? (isDetectingColonia ? "Detectando colonia..." : "Escribe la colonia o barrio")
+                              : "Selecciona primero una ubicación en el mapa"
+                          }
+                          className="w-full px-4 py-3 bg-muted border border-input rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
+                          disabled={isDetectingColonia || !location}
+                        />
+                        {isDetectingColonia && (
+                          <div className="absolute right-4 top-3">
+                            <Loader2 className="w-5 h-5 animate-spin text-sky-500" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        La colonia se detectará automáticamente si está dentro de los límites definidos
+                      </p>
+                    </div>
+
+                    <div className="flex justify-between pt-6 border-t border-border">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={prevStep}
+                      >
+                        Atrás
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={!location || !colonia.trim()}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        Continuar
+                        <Compass className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {step === 3 && (
+                  <motion.div
+                    key="step3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-6"
+                  >
+                    {/* Foto */}
+                    <div>
+                      <Label className="text-foreground mb-3 block text-lg font-medium flex items-center gap-2">
+                        <Camera className="w-5 h-5" />
+                        Añade una foto (Opcional)
+                      </Label>
+                      <div className="space-y-4">
+                        {photo ? (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="relative"
+                          >
+                            <img 
+                              src={photo} 
+                              alt="Preview" 
+                              className="w-full max-w-md h-48 object-cover rounded-xl border border-border mx-auto"
+                            />
+                            <button
+                              type="button"
+                              onClick={removePhoto}
+                              className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </motion.div>
+                        ) : (
+                          <motion.div
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed border-input rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                          >
+                            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Upload className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <p className="text-foreground font-medium">Sube una foto</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Arrastra o haz clic para seleccionar una imagen
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Máximo 5MB • Formatos: JPG, PNG, GIF
+                            </p>
+                          </motion.div>
+                        )}
+                        <input 
+                          ref={fileInputRef} 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handlePhotoUpload} 
+                          className="hidden" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Resumen */}
+                    <div className="bg-muted/50 rounded-xl p-6">
+                      <h3 className="text-lg font-medium text-foreground mb-4">Resumen del Reporte</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Tipo:</span>
+                          <span className="font-medium text-foreground">{type}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Ubicación:</span>
+                          <span className="font-medium text-foreground">{colonia}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Puntos a ganar:</span>
+                          <span className="font-medium text-emerald-500">+10 puntos</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between pt-6 border-t border-border">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={prevStep}
+                      >
+                        Atrás
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={loading}
+                        className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 shadow-lg"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Enviando...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 mr-2" />
+                            Enviar Reporte
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </form>
+
+          {/* Footer */}
+          <div className="sticky bottom-0 bg-background border-t border-border p-4">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-4 h-4" />
+                <span>Las fotos ayudan a entender mejor el problema</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span>⭐</span>
+                <span>Ganas 10 puntos por cada reporte válido</span>
+              </div>
+            </div>
           </div>
-        </form>
+        </motion.div>
       </DialogContent>
     </Dialog>
   );

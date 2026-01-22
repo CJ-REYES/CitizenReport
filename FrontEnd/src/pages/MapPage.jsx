@@ -174,13 +174,13 @@ const MapPage = ({ currentUser, onPointsEarned }) => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 relative z-10">
             {/* Hero Header */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-gradient-to-r from-primary/5 via-background to-secondary/5 border border-border rounded-2xl p-6"
+                className="bg-gradient-to-r from-primary/5 via-background to-secondary/5 border border-border rounded-2xl p-6 relative z-20"
             >
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
@@ -213,7 +213,7 @@ const MapPage = ({ currentUser, onPointsEarned }) => {
                     { value: stats.total, label: "Total Reportes", color: "text-primary" },
                     { value: stats.enValidacion, label: "En Validación", color: "text-yellow-500" },
                     { value: stats.validados, label: "Validados", color: "text-emerald-500" },
-                    { value: stats.resueltos, label: "Resueltos", color: "text-blue-500" },
+                    { value: stats.resueltos, label: "Resuelto", color: "text-blue-500" },
                     { value: stats.rechazados, label: "Rechazados", color: "text-red-500" }
                 ].map((stat, index) => (
                     <motion.div
@@ -232,6 +232,7 @@ const MapPage = ({ currentUser, onPointsEarned }) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
+                className="relative z-0"
             >
                 <MapView currentUser={currentUser} lastUpdate={lastUpdate} />
             </motion.div>

@@ -53,11 +53,11 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
   const { toast } = useToast();
 
   const reportTypes = [
-    { value: 'Bache', label: '🚧 Bache', color: 'text-orange-500' },
-    { value: 'Alumbrado', label: '💡 Alumbrado', color: 'text-yellow-500' },
-    { value: 'Basura', label: '🗑️ Basura', color: 'text-red-500' },
-    { value: 'Vandalismo', label: '🎨 Vandalismo', color: 'text-purple-500' },
-    { value: 'Otro', label: '🔧 Otro', color: 'text-gray-500' }
+    { value: 'Bache', label: 'Bache', emoji: '🚧', color: 'text-orange-500' },
+    { value: 'Alumbrado', label: 'Alumbrado', emoji: '💡', color: 'text-yellow-500' },
+    { value: 'Basura', label: 'Basura', emoji: '🗑️', color: 'text-red-500' },
+    { value: 'Vandalismo', label: 'Vandalismo', emoji: '🎨', color: 'text-purple-500' },
+    { value: 'Otro', label: 'Otro', emoji: '🔧', color: 'text-gray-500' }
   ];
 
   const candelariaCenter = [18.186356, -91.041947]; 
@@ -132,27 +132,49 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
     setLoading(true);
 
     try {
-      const storedToken = currentUser?.tokenJWT; 
-      const ciudadanoId = currentUser?.idUser; 
+      // Obtener token directamente del localStorage
+      const storedToken = localStorage.getItem('userToken') || localStorage.getItem('token');
+      
+      // Obtener usuario del localStorage o de props
+      let usuarioData = null;
+      try {
+        usuarioData = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      } catch (parseError) {
+        console.error('Error parsing user data:', parseError);
+        usuarioData = currentUser || {};
+      }
+      
+      const ciudadanoId = usuarioData?.idUser || usuarioData?.id || currentUser?.idUser || currentUser?.id;
+      
+      console.log('Debug - Token encontrado:', !!storedToken);
+      console.log('Debug - CiudadanoId:', ciudadanoId);
+      console.log('Debug - Usuario data:', usuarioData);
       
       if (!storedToken || !ciudadanoId) {
-        throw new Error("Error de sesión. Por favor, vuelve a iniciar sesión.");
+        throw new Error("No se encontró información de sesión. Por favor, vuelve a iniciar sesión.");
       }
 
       const formData = new FormData();
       
-      formData.append('CiudadanoId', ciudadanoId);
+      // Asegurarnos de que los datos sean strings
+      formData.append('CiudadanoId', ciudadanoId.toString());
       formData.append('TipoIncidente', type);
       formData.append('Colonia', colonia);
       formData.append('DescripcionDetallada', description);
-      formData.append('Latitud', location.lat);
-      formData.append('Longitud', location.lng);
+      formData.append('Latitud', location.lat.toString());
+      formData.append('Longitud', location.lng.toString());
       
       if (photoFile) {
-        formData.append('ArchivoFoto', photoFile, photoFile.name); 
+        formData.append('ArchivoFoto', photoFile);
       }
       
-      await createReport(formData, storedToken); 
+      console.log('Enviando reporte...');
+      console.log('Tipo Incidente:', type);
+      console.log('Colonia:', colonia);
+      console.log('Coordenadas:', location.lat, location.lng);
+      
+      // Enviar sin token en el parámetro, que el servicio lo busque
+      await createReport(formData);
       
       const pointsEarned = 10; 
       if (onPointsEarned) onPointsEarned(pointsEarned);
@@ -167,22 +189,34 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
       setType('Bache');
       setColonia('');
       setPhoto(null);
-      setPhotoFile(null); 
+      setPhotoFile(null);
       setLocation(null);
       setStep(1);
       setOpen(false);
       
-      if (onReportSubmit) onReportSubmit(); 
+      if (onReportSubmit) onReportSubmit();
 
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error completo al enviar reporte:", error);
+      
+      let errorMessage = "Ocurrió un error al enviar el reporte.";
+      if (error.message.includes("No se encontró información de sesión") || 
+          error.message.includes("Error de sesión") ||
+          error.message.includes("token")) {
+        errorMessage = "Tu sesión ha expirado o no tienes permisos. Por favor, inicia sesión nuevamente.";
+      } else if (error.message.includes("No se pudo conectar")) {
+        errorMessage = "No se pudo conectar con el servidor. Verifica tu conexión.";
+      } else {
+        errorMessage = error.message || "Ocurrió un error inesperado.";
+      }
+      
       toast({
         title: "Error al enviar",
-        description: error.message || "Ocurrió un error.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
 
@@ -285,10 +319,10 @@ const ReportModal = ({ currentUser, onReportSubmit, onPointsEarned, trigger }) =
                             }`}
                           >
                             <span className={`text-2xl mb-2 ${reportType.color}`}>
-                              {reportType.label.charAt(0)}
+                              {reportType.emoji}
                             </span>
                             <span className="text-sm font-medium text-foreground">
-                              {reportType.label.substring(2)}
+                              {reportType.label}
                             </span>
                           </motion.button>
                         ))}

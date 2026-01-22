@@ -112,8 +112,33 @@ const MapControls = ({ mapRef }) => {
 
   return (
     <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
- 
-
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleZoomIn}
+        className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        title="Acercar"
+      >
+        <ZoomIn className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+      </motion.button>
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleZoomOut}
+        className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        title="Alejar"
+      >
+        <ZoomOut className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+      </motion.button>
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={handleRecenter}
+        className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        title="Centrar mapa"
+      >
+        <Navigation className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+      </motion.button>
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
@@ -380,8 +405,8 @@ const MapView = ({ currentUser, lastUpdate }) => {
       </AnimatePresence>
 
       {/* Map Container */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
-        <div className="h-[600px] relative">
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg relative">
+        <div className="h-[600px] relative z-0">
           {loading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
               <motion.div

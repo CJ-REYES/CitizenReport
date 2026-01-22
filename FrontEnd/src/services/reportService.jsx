@@ -36,35 +36,43 @@ const getAuthToken = () => {
 };
 
 /**
- * Envía un nuevo reporte al backend usando FormData (para el archivo binario IFormFile).
+ * Envía un nuevo reporte al backend usando FormData
  */
-export const createReport = async (formData) => {
-    try {
-        const token = getAuthToken();
-        if (!token) {
-            throw new Error('No se encontró token de autenticación');
-        }
-
-        const response = await fetch(`${API_BASE_URL}/reportes`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}` 
-            },
-            body: formData
-        });
-
-        const data = await handleResponse(response);
-
-        if (!response.ok) {
-            const errorMessage = data.mensaje || data.message || data || 'Error al crear el reporte';
-            throw new Error(errorMessage);
-        }
-
-        return data;
-    } catch (error) {
-        console.error("Error en createReport:", error);
-        throw (error instanceof Error) ? error : new Error('No se pudo conectar al servidor de reportes.');
+export const createReport = async (formData, token) => {
+  try {
+    // Usar el token pasado como parámetro o buscar en localStorage
+    const authToken = token || getAuthToken();
+    if (!authToken) {
+      throw new Error('No se encontró token de autenticación');
     }
+
+    console.log('Enviando request a:', `${API_BASE_URL}/reportes`);
+    console.log('Token:', authToken.substring(0, 20) + '...');
+
+    const response = await fetch(`${API_BASE_URL}/reportes`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: formData
+    });
+
+    console.log('Response status:', response.status);
+
+    const data = await handleResponse(response);
+
+    if (!response.ok) {
+      const errorMessage = data.mensaje || data.message || data || `Error ${response.status}: ${response.statusText}`;
+      console.error('Error del servidor:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    console.log('Reporte creado exitosamente:', data);
+    return data;
+  } catch (error) {
+    console.error("Error en createReport:", error);
+    throw (error instanceof Error) ? error : new Error('No se pudo conectar al servidor de reportes.');
+  }
 };
 
 /**
@@ -163,6 +171,7 @@ export const validateReport = async (validationData) => {
         throw error;
     }
 };
+
 /**
  * Obtiene todos los reportes
  */
@@ -194,6 +203,7 @@ export const getAllReports = async () => {
         throw error;
     }
 };
+
 /**
  * Obtiene la colonia con más reportes de alumbrado público
  */
@@ -215,7 +225,6 @@ export const getColoniaMasAlumbrado = async () => {
         const data = await handleResponse(response);
 
         if (response.status === 404) {
-            // No hay reportes de alumbrado, retornamos valores por defecto
             return { 
                 coloniaMasAlumbrado: 'Sin datos', 
                 totalReportesAlumbrado: 0 
@@ -230,7 +239,6 @@ export const getColoniaMasAlumbrado = async () => {
         return data;
     } catch (error) {
         console.error("Error en getColoniaMasAlumbrado:", error);
-        // En caso de cualquier error, retornamos valores por defecto
         return { 
             coloniaMasAlumbrado: 'Error al cargar', 
             totalReportesAlumbrado: 0 
@@ -259,7 +267,6 @@ export const getColoniaMasBaches = async () => {
         const data = await handleResponse(response);
 
         if (response.status === 404) {
-            // No hay reportes de baches, retornamos valores por defecto
             return { 
                 coloniaMasBaches: 'Sin datos', 
                 totalReportesBaches: 0 
@@ -274,7 +281,6 @@ export const getColoniaMasBaches = async () => {
         return data;
     } catch (error) {
         console.error("Error en getColoniaMasBaches:", error);
-        // En caso de cualquier error, retornamos valores por defecto
         return { 
             coloniaMasBaches: 'Error al cargar', 
             totalReportesBaches: 0 
@@ -303,7 +309,6 @@ export const getColoniaMasDanos = async () => {
         const data = await handleResponse(response);
 
         if (response.status === 404) {
-            // No hay reportes en general, retornamos valores por defecto
             return { 
                 coloniaMasDanos: 'Sin datos', 
                 totalReportes: 0 
@@ -318,7 +323,6 @@ export const getColoniaMasDanos = async () => {
         return data;
     } catch (error) {
         console.error("Error en getColoniaMasDanos:", error);
-        // En caso de cualquier error, retornamos valores por defecto
         return { 
             coloniaMasDanos: 'Error al cargar', 
             totalReportes: 0 
